@@ -87,15 +87,8 @@ io.on('connection', (socket) => {
     });
 });
 
-// Middleware to forcefully set the correct Content-Type for .tsx/.ts files
-app.use((req, res, next) => {
-  if (req.path.endsWith('.tsx') || req.path.endsWith('.ts')) {
-    res.setHeader('Content-Type', 'application/javascript');
-  }
-  next();
-});
-
 // Serve static files from the project root.
+// This will serve index.html and the /dist directory.
 app.use(express.static(projectRoot));
 
 // Serve index.html for any GET request that doesn't match a static file

@@ -5,7 +5,8 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
+    "build": "esbuild index.tsx --bundle --outfile=dist/bundle.js --jsx=automatic",
+    "start": "npm run build && node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
@@ -14,5 +15,8 @@
     "express": "^4.19.2",
     "immer": "^10.1.1",
     "socket.io": "^4.7.5"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.4"
   }
 }
