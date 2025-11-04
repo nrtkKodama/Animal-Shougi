@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Socket } from 'socket.io-client';
+import { io, Socket } from 'socket.io-client';
 import MainMenu from './components/MainMenu';
 import GameUI from './components/GameUI';
 import OnlineLobby from './components/OnlineLobby';
@@ -41,6 +41,8 @@ function App() {
             setPlayer(Player.SENTE); // Default POV for PvP is always Sente
             setView('game');
         } else if (mode === GameMode.ONLINE) {
+            const newSocket = io();
+            setSocket(newSocket);
             setView('online-lobby');
         }
     };
@@ -66,12 +68,16 @@ function App() {
         }
     };
     
-    const handleGameStart = useCallback((newSocket: Socket, initialState: GameState, assignedPlayer: Player) => {
-        setSocket(newSocket);
+    const handleGameStart = useCallback((initialState: GameState, assignedPlayer: Player) => {
+        if (!socket) {
+            console.error("Game start requested but socket not available.");
+            handleBackToMenu();
+            return;
+        }
         setGameState(initialState);
         setPlayer(assignedPlayer);
         setView('game');
-    }, [setGameState]);
+    }, [socket, setGameState, handleBackToMenu]);
 
     const handleMove = useCallback((action: Action) => {
         if (socket) {
@@ -133,7 +139,7 @@ function App() {
             case 'menu':
                 return <MainMenu onSelectMode={handleSelectMode} />;
             case 'online-lobby':
-                return <OnlineLobby onBackToMenu={handleBackToMenu} onGameStart={handleGameStart} />;
+                return <OnlineLobby socket={socket} onBackToMenu={handleBackToMenu} onGameStart={handleGameStart} />;
             case 'game':
                 if (!gameMode) return <MainMenu onSelectMode={handleSelectMode} />;
                 return (

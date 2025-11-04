@@ -1,52 +1,54 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
+import React, { useState, useEffect } from 'react';
+import { Socket } from 'socket.io-client';
 import { GameState, Player } from '../types';
 
 interface OnlineLobbyProps {
+    socket: Socket | null;
     onBackToMenu: () => void;
-    onGameStart: (socket: Socket, initialState: GameState, player: Player) => void;
+    onGameStart: (initialState: GameState, player: Player) => void;
 }
 
-const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBackToMenu, onGameStart }) => {
+const OnlineLobby: React.FC<OnlineLobbyProps> = ({ socket, onBackToMenu, onGameStart }) => {
     const [roomCode, setRoomCode] = useState('');
     const [status, setStatus] = useState('');
-    const socketRef = useRef<Socket | null>(null);
 
     useEffect(() => {
-        // Connect on mount
-        const newSocket = io();
-        socketRef.current = newSocket;
-        
-        newSocket.on('game_start', ({ gameState, player }) => {
-            onGameStart(newSocket, gameState, player);
-        });
-        
-        newSocket.on('waiting_for_opponent', () => {
-            setStatus('Waiting for opponent...');
-        });
+        if (!socket) {
+            setStatus('Connecting to server...');
+            return;
+        }
+        setStatus(''); // Clear status when socket is ready
 
-        newSocket.on('room_full', () => {
-            setStatus('This room is full. Please try another code.');
-            newSocket.disconnect();
-            socketRef.current = null;
-        });
-        
-        newSocket.on('connect_error', () => {
-            setStatus('Could not connect to the server.');
-        });
-
-        // Disconnect on unmount
-        return () => {
-            if (newSocket) {
-                newSocket.disconnect();
-            }
+        const gameStartHandler = ({ gameState, player }: { gameState: GameState, player: Player }) => {
+            onGameStart(gameState, player);
         };
-    }, [onGameStart]);
+        const waitingHandler = () => {
+            setStatus('Waiting for opponent...');
+        };
+        const roomFullHandler = () => {
+            setStatus('This room is full. Please try another code.');
+        };
+        const connectErrorHandler = () => {
+            setStatus('Could not connect to the server.');
+        };
+
+        socket.on('game_start', gameStartHandler);
+        socket.on('waiting_for_opponent', waitingHandler);
+        socket.on('room_full', roomFullHandler);
+        socket.on('connect_error', connectErrorHandler);
+
+        return () => {
+            socket.off('game_start', gameStartHandler);
+            socket.off('waiting_for_opponent', waitingHandler);
+            socket.off('room_full', roomFullHandler);
+            socket.off('connect_error', connectErrorHandler);
+        };
+    }, [socket, onGameStart]);
 
     const handleJoin = () => {
-        if (roomCode.trim() && socketRef.current) {
+        if (roomCode.trim() && socket) {
             setStatus('Joining room...');
-            socketRef.current.emit('join_room', roomCode.trim());
+            socket.emit('join_room', roomCode.trim());
         }
     };
     
@@ -70,7 +72,7 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ onBackToMenu, onGameStart }) 
                     />
                     <button
                         onClick={handleJoin}
-                        disabled={!roomCode.trim() || !socketRef.current}
+                        disabled={!roomCode.trim() || !socket}
                         className="w-full bg-yellow-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-yellow-700 transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-yellow-400 disabled:bg-stone-400 disabled:cursor-not-allowed"
                     >
                         Join or Create Game

@@ -101,7 +101,7 @@ io.on('connection', (socket) => {
                 const playerIndex = room.players.findIndex(p => p.id === socket.id);
                 if (playerIndex !== -1) {
                      // Notify the other player and close the room
-                    socket.to(currentRoomCode).emit('opponent_disconnected');
+                    socket.broadcast.to(currentRoomCode).emit('opponent_disconnected');
                     rooms.delete(currentRoomCode);
                     console.log(`Room ${currentRoomCode} closed due to disconnect by ${socket.id}.`);
                 }
