@@ -7,15 +7,11 @@ import { fileURLToPath } from 'url';
 import { createInitialState, applyAction } from './server/gameLogic.js';
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const projectRoot = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
-
-// Define custom MIME type for .tsx files.
-// This tells express.static to serve .tsx files as JavaScript.
-express.static.mime.define({'application/javascript': ['tsx', 'ts']});
 
 // In-memory store for rooms
 const rooms = new Map();
@@ -81,7 +77,6 @@ io.on('connection', (socket) => {
             const room = rooms.get(currentRoomCode);
             if (room) {
                 delete room.players[socket.id];
-                // If the room is now empty or has one player left in an active game, notify and close.
                 if (Object.keys(room.players).length < 2) {
                     socket.to(currentRoomCode).emit('opponent_disconnected');
                     rooms.delete(currentRoomCode);
@@ -92,16 +87,22 @@ io.on('connection', (socket) => {
     });
 });
 
-// Serve static files from the project root.
-app.use(express.static(__dirname));
+// Middleware to forcefully set the correct Content-Type for .tsx/.ts files
+app.use((req, res, next) => {
+  if (req.path.endsWith('.tsx') || req.path.endsWith('.ts')) {
+    res.setHeader('Content-Type', 'application/javascript');
+  }
+  next();
+});
 
+// Serve static files from the project root.
+app.use(express.static(projectRoot));
 
 // Serve index.html for any GET request that doesn't match a static file
 // This acts as a fallback for Single Page Applications.
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(projectRoot, 'index.html'));
 });
-
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
