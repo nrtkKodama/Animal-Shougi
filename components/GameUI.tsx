@@ -62,22 +62,27 @@ const GameUI: React.FC<GameUIProps> = ({
         return player === Player.SENTE ? 'Player 1 (Sente)' : 'Player 2 (Gote/AI)';
     };
     
+    const playerIsCurrent = currentPlayer === pov;
+    const isMyTurn = isOnline ? playerIsCurrent && !gameOverMessage : (currentPlayer === pov && !isAITurn && !gameOverMessage);
+
     let statusText: string;
     if (gameOverMessage) {
         statusText = gameOverMessage;
     } else if (winner !== undefined) {
         statusText = `${getPlayerName(winner)} wins!`;
-    } else if (isOnline && currentPlayer !== pov) {
+    } else if (isOnline && !playerIsCurrent) {
         statusText = "Waiting for opponent...";
-    } else {
+    } else if (isMyTurn) {
+        statusText = `Your Turn ${isCheck ? '- Check!' : ''}`;
+    }
+     else {
         statusText = `${getPlayerName(currentPlayer)}'s Turn ${isCheck ? '- Check!' : ''}`;
     }
 
     const playerPieces = pov === Player.SENTE ? captured[Player.SENTE] : captured[Player.GOTE];
     const opponentPieces = pov === Player.SENTE ? captured[Player.GOTE] : captured[Player.SENTE];
     
-    const playerIsCurrent = currentPlayer === pov;
-    const isPlayerTurn = isOnline ? playerIsCurrent && !gameOverMessage : !isAITurn;
+    const isPlayerInputEnabled = isOnline ? playerIsCurrent && !gameOverMessage : !isAITurn;
 
     return (
         <div className="flex flex-col items-center p-2 md:p-4 bg-stone-100 rounded-lg w-full max-w-lg mx-auto relative">
@@ -90,15 +95,15 @@ const GameUI: React.FC<GameUIProps> = ({
             </div>
             
             <div className="w-full my-2">
-                <Board board={board} currentPlayer={currentPlayer} selectedPosition={selectedPosition} validMoves={validMoves} onSquareClick={isPlayerTurn ? onSquareClick : () => {}} lastMove={lastMove} pov={pov}/>
+                <Board board={board} currentPlayer={currentPlayer} selectedPosition={selectedPosition} validMoves={validMoves} onSquareClick={isPlayerInputEnabled ? onSquareClick : () => {}} lastMove={lastMove} pov={pov}/>
             </div>
 
             <div className="w-full flex flex-col items-center mt-2">
                  <span className="font-semibold text-stone-700 mb-1">{getPlayerName(pov)}</span>
-                <CapturedPieces pieces={playerPieces} player={pov} pov={pov} onPieceClick={isPlayerTurn ? onCapturedPieceClick : () => {}} selectedPiece={isPlayerTurn ? selectedCapturedPiece : null}/>
+                <CapturedPieces pieces={playerPieces} player={pov} pov={pov} onPieceClick={isPlayerInputEnabled ? onCapturedPieceClick : () => {}} selectedPiece={isPlayerInputEnabled ? selectedCapturedPiece : null}/>
             </div>
             
-             <div className="mt-4 text-center p-2 bg-white rounded-lg shadow w-full">
+             <div className={`mt-4 text-center p-2 rounded-lg shadow w-full transition-all duration-300 ${isMyTurn ? 'bg-yellow-200 ring-2 ring-yellow-500' : 'bg-white'}`}>
                 <p className={`text-lg font-bold ${isCheck && winner === undefined ? 'text-red-600 animate-pulse' : 'text-stone-800'}`}>
                     {statusText}
                 </p>

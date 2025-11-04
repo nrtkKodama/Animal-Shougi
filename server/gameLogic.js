@@ -193,7 +193,6 @@ export const applyAction = (gameState, action) => {
 
     const nextPlayer = currentActionPlayer === Player.SENTE ? Player.GOTE : Player.SENTE;
     newGameState.currentPlayer = nextPlayer;
-    // This logic is synchronized with the client-side `useGameLogic.ts` to prevent desync issues.
     if (currentActionPlayer === Player.GOTE || newGameState.turn === 0) {
          newGameState.turn++;
     }
