@@ -1,6 +1,19 @@
-// Replicating enums and constants from the client-side for server use.
+// This file is a JavaScript recreation of the client-side game logic
+// found in `hooks/useGameLogic.ts` to ensure perfect synchronization
+// for online play.
+
+// ==============================
+// Constants & Helpers
+// ==============================
+
 const Player = { SENTE: 0, GOTE: 1 };
-const PieceType = { LION: 'LION', GIRAFFE: 'GIRAFFE', ELEPHANT: 'ELEPHANT', CHICK: 'CHICK', HEN: 'HEN' };
+const PieceType = {
+    LION: 'LION',
+    GIRAFFE: 'GIRAFFE',
+    ELEPHANT: 'ELEPHANT',
+    CHICK: 'CHICK',
+    HEN: 'HEN',
+};
 const BOARD_ROWS = 4;
 const BOARD_COLS = 3;
 
@@ -20,6 +33,10 @@ const PIECE_MOVES = {
 };
 
 const cloneDeep = (obj) => JSON.parse(JSON.stringify(obj));
+
+// ==============================
+// State & Core Logic
+// ==============================
 
 export const createInitialState = (firstPlayer = Player.SENTE) => ({
     board: cloneDeep(INITIAL_BOARD),
@@ -79,8 +96,10 @@ const isKingInCheck = (player, currentBoard) => {
     return isPositionUnderAttack(lionPos, opponent, currentBoard);
 };
 
-const getLegalActions = (player, currentBoard, currentCaptured) => {
+// Must be a function declaration to allow recursive calls inside for checkmate checks.
+function getLegalActions(player, currentBoard, currentCaptured) {
     const actions = [];
+    // Moves
     for (let r = 0; r < BOARD_ROWS; r++) {
         for (let c = 0; c < BOARD_COLS; c++) {
             const piece = currentBoard[r][c];
@@ -97,11 +116,13 @@ const getLegalActions = (player, currentBoard, currentCaptured) => {
             }
         }
     }
+    // Drops
     const uniqueCaptured = [...new Set(currentCaptured[player])];
     for (const pieceType of uniqueCaptured) {
         for (let r = 0; r < BOARD_ROWS; r++) {
             for (let c = 0; c < BOARD_COLS; c++) {
                  if (currentBoard[r][c] === null) {
+                    // This is the uchifuzume (illegal checkmate by dropping a chick) check.
                     if (pieceType === PieceType.CHICK) {
                         const promotionRow = player === Player.SENTE ? 0 : BOARD_ROWS - 1;
                         if (r === promotionRow) continue;
