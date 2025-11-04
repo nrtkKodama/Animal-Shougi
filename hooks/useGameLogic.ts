@@ -11,6 +11,8 @@ const createInitialState = (firstPlayer: Player = Player.SENTE): GameState => ({
     turn: 1,
     isCheck: false,
     isCheckmate: false,
+    isDraw: false,
+    history: {},
 });
 
 const getPieceMoves = (piece: Piece, from: Position, currentBoard: Board): Position[] => {
@@ -88,12 +90,6 @@ const getLegalActions = (player: Player, currentBoard: Board, currentCaptured: G
                     if (pieceType === PieceType.CHICK) {
                         const promotionRow = player === Player.SENTE ? 0 : BOARD_ROWS - 1;
                         if (r === promotionRow) continue;
-                        const tempBoardForCheckmate = cloneDeep(currentBoard);
-                        tempBoardForCheckmate[r][c] = { type: pieceType, player };
-                        const opponent = player === Player.SENTE ? Player.GOTE : Player.SENTE;
-                        if (isKingInCheck(opponent, tempBoardForCheckmate) && getLegalActions(opponent, tempBoardForCheckmate, currentCaptured).length === 0) {
-                            continue;
-                        }
                     }
                     const tempBoard = cloneDeep(currentBoard);
                     tempBoard[r][c] = { type: pieceType, player };
@@ -184,9 +180,24 @@ export const useGameLogic = () => {
              newGameState.turn++;
         }
         
+        const stateKey = JSON.stringify({
+            board: newGameState.board,
+            captured: newGameState.captured,
+            currentPlayer: newGameState.currentPlayer
+        });
+        const newHistory = { ...(newGameState.history || {}) };
+        newHistory[stateKey] = (newHistory[stateKey] || 0) + 1;
+        newGameState.history = newHistory;
+
+        if (newHistory[stateKey] >= 3) {
+            newGameState.isDraw = true;
+            newGameState.winner = undefined;
+        } else {
+            newGameState.winner = checkForWinner(newGameState.board, nextPlayer, newGameState.captured);
+        }
+
         newGameState.isCheck = isKingInCheck(nextPlayer, newGameState.board);
-        newGameState.winner = checkForWinner(newGameState.board, nextPlayer, newGameState.captured);
-        newGameState.isCheckmate = !!newGameState.winner;
+        newGameState.isCheckmate = !!newGameState.winner && !newGameState.isDraw;
         
         setGameStateInternal(newGameState);
     }, [gameState]);
@@ -221,7 +232,7 @@ export const useGameLogic = () => {
     };
 
     const handleSquareClick = useCallback((row: number, col: number, onMove?: (action: Action) => void) => {
-        if (winner) return;
+        if (winner || gameState.isDraw) return;
         if (selectedPosition) {
             if (validMoves.some(m => m.row === row && m.col === col)) {
                 handleAction({ from: selectedPosition, to: { row, col } }, onMove);
@@ -245,10 +256,10 @@ export const useGameLogic = () => {
                 setValidMoves(getValidMovesForPiece({ row, col }));
             }
         }
-    }, [winner, board, currentPlayer, selectedPosition, selectedCapturedPiece, validMoves, applyAction, getValidMovesForPiece]);
+    }, [winner, gameState.isDraw, board, currentPlayer, selectedPosition, selectedCapturedPiece, validMoves, applyAction, getValidMovesForPiece]);
 
     const handleCapturedPieceClick = useCallback((pieceType: PieceType, onMove?: (action: Action) => void) => {
-        if (winner) return;
+        if (winner || gameState.isDraw) return;
         if (selectedCapturedPiece === pieceType) {
             setSelectedCapturedPiece(null);
             setValidMoves([]);
@@ -259,7 +270,7 @@ export const useGameLogic = () => {
             setSelectedPosition(null);
             setValidMoves(getValidDropsForPiece(pieceType));
         }
-    }, [winner, selectedCapturedPiece, captured, currentPlayer, getValidDropsForPiece]);
+    }, [winner, gameState.isDraw, selectedCapturedPiece, captured, currentPlayer, getValidDropsForPiece]);
     
     const resetGame = useCallback((firstPlayer: Player = Player.SENTE) => {
         setGameStateInternal(createInitialState(firstPlayer));

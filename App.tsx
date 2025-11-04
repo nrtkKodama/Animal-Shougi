@@ -5,11 +5,12 @@ import GameUI from './components/GameUI';
 import OnlineLobby from './components/OnlineLobby';
 import { useGameLogic } from './hooks/useGameLogic';
 import { getAiMove } from './services/geminiService';
-import { GameMode, View, Player, Action, GameState } from './types';
+import { GameMode, View, Player, Action, GameState, Difficulty } from './types';
 
 function App() {
     const [view, setView] = useState<View>('menu');
     const [gameMode, setGameMode] = useState<GameMode | null>(null);
+    const [difficulty, setDifficulty] = useState<Difficulty>(Difficulty.MEDIUM);
     const [player, setPlayer] = useState<Player>(Player.SENTE); // POV for SP, default for others
     const [isAITurn, setIsAITurn] = useState<boolean>(false);
     const [socket, setSocket] = useState<Socket | null>(null);
@@ -28,10 +29,13 @@ function App() {
         getLegalActionsForCurrentPlayer,
     } = useGameLogic();
 
-    const handleSelectMode = (mode: GameMode) => {
+    const handleSelectMode = (mode: GameMode, difficulty?: Difficulty) => {
         setGameMode(mode);
         setGameOverMessage(null);
         if (mode === GameMode.SINGLE_PLAYER) {
+            if (difficulty) {
+                setDifficulty(difficulty);
+            }
             const humanPlayer = Math.random() < 0.5 ? Player.SENTE : Player.GOTE;
             resetGame(humanPlayer);
             setPlayer(humanPlayer);
@@ -102,7 +106,7 @@ function App() {
                  setIsAITurn(false);
                  return;
             }
-            const aiMove = await getAiMove(legalActions, gameState);
+            const aiMove = await getAiMove(legalActions, gameState, difficulty);
             applyAction(aiMove);
         } catch (error) {
             console.error("AI move failed:", error);
@@ -111,7 +115,7 @@ function App() {
         } finally {
             setIsAITurn(false);
         }
-    }, [gameState, applyAction, getLegalActionsForCurrentPlayer]);
+    }, [gameState, applyAction, getLegalActionsForCurrentPlayer, difficulty]);
 
     useEffect(() => {
         const isSinglePlayer = gameMode === GameMode.SINGLE_PLAYER;

@@ -69,6 +69,8 @@ export const createInitialState = (firstPlayer = Player.SENTE) => ({
     turn: 1,
     isCheck: false,
     isCheckmate: false,
+    isDraw: false,
+    history: {},
     // winner and lastMove are intentionally omitted to be `undefined` by default, matching the client's type.
 });
 
@@ -181,16 +183,6 @@ function getLegalActions(player, board, captured) {
                     continue;
                 }
                 
-                // Uchifuzume (illegal checkmate by dropping a chick) check.
-                if (pieceType === PieceType.CHICK) {
-                    const tempBoardForCheckmate = cloneDeep(board);
-                    tempBoardForCheckmate[r][c] = { type: pieceType, player };
-                    const opponent = player === Player.SENTE ? Player.GOTE : Player.SENTE;
-                    if (isKingInCheck(opponent, tempBoardForCheckmate) && getLegalActions(opponent, tempBoardForCheckmate, captured).length === 0) {
-                        continue; // This move is illegal, so skip it.
-                    }
-                }
-
                 const temp = cloneDeep(board);
                 temp[r][c] = { type: pieceType, player };
 
@@ -307,11 +299,27 @@ export const applyAction = (state, action) => {
     if (currentActionPlayer === Player.GOTE) {
          newState.turn++;
     }
+    
+    // History and Draw Check
+    const stateKey = JSON.stringify({
+        board: newState.board,
+        captured: newState.captured,
+        currentPlayer: newState.currentPlayer
+    });
+    const newHistory = { ...(newState.history || {}) };
+    newHistory[stateKey] = (newHistory[stateKey] || 0) + 1;
+    newState.history = newHistory;
 
+    if (newHistory[stateKey] >= 3) {
+        newState.isDraw = true;
+        newState.winner = undefined;
+    } else {
+        newState.winner = checkForWinner(newState.board, newState.currentPlayer, newState.captured);
+    }
+    
     // status
     newState.isCheck = isKingInCheck(newState.currentPlayer, newState.board);
-    newState.winner = checkForWinner(newState.board, newState.currentPlayer, newState.captured);
-    newState.isCheckmate = !!newState.winner;
+    newState.isCheckmate = !!newState.winner && !newState.isDraw;
 
     return newState;
 };

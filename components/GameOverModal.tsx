@@ -10,11 +10,14 @@ interface GameOverModalProps {
     customMessage?: string | null;
     onRematch?: () => void;
     rematchStatus?: string | null;
+    isDraw?: boolean;
 }
 
-const GameOverModal: React.FC<GameOverModalProps> = ({ winner, getPlayerName, onNewGame, onBackToMenu, isOnline, customMessage, onRematch, rematchStatus }) => {
+const GameOverModal: React.FC<GameOverModalProps> = ({ winner, getPlayerName, onNewGame, onBackToMenu, isOnline, customMessage, onRematch, rematchStatus, isDraw }) => {
     const winnerName = winner !== undefined ? getPlayerName(winner) : '';
-    const message = customMessage || <><span className="font-bold text-yellow-300">{winnerName}</span> wins!</>;
+    const message = isDraw
+        ? "Draw by repetition (千日手)"
+        : customMessage || <><span className="font-bold text-yellow-300">{winnerName}</span> wins!</>;
 
     return (
         <div className="absolute inset-0 bg-black bg-opacity-60 flex flex-col items-center justify-center rounded-lg z-20 text-white p-4">

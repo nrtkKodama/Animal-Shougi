@@ -72,7 +72,7 @@ const GameUI: React.FC<GameUIProps> = ({
     }, [gameState.turn, gameState.winner]);
 
 
-    const { board, captured, currentPlayer, winner, lastMove, isCheck } = gameState;
+    const { board, captured, currentPlayer, winner, lastMove, isCheck, isDraw } = gameState;
     const opponent = pov === Player.SENTE ? Player.GOTE : Player.SENTE;
     const playerIsCurrent = currentPlayer === pov;
 
@@ -88,7 +88,7 @@ const GameUI: React.FC<GameUIProps> = ({
     };
 
     const isPlayerInputEnabled = (() => {
-        if (gameOverMessage || winner !== undefined) return false;
+        if (gameOverMessage || winner !== undefined || isDraw) return false;
 
         switch (gameMode) {
             case GameMode.ONLINE:
@@ -103,7 +103,7 @@ const GameUI: React.FC<GameUIProps> = ({
     
     const isMyTurnForStatusText = (gameMode === GameMode.SINGLE_PLAYER && playerIsCurrent && !isAITurn) || (isOnline && playerIsCurrent);
 
-    const shouldHighlight = !gameOverMessage && (
+    const shouldHighlight = !gameOverMessage && !isDraw && (
         (gameMode === GameMode.PLAYER_VS_PLAYER) ||
         (gameMode === GameMode.SINGLE_PLAYER && playerIsCurrent && !isAITurn) ||
         (isOnline && playerIsCurrent)
@@ -112,6 +112,8 @@ const GameUI: React.FC<GameUIProps> = ({
     let statusText: string;
     if (gameOverMessage) {
         statusText = gameOverMessage;
+    } else if (isDraw) {
+        statusText = 'Draw by repetition.';
     } else if (winner !== undefined) {
         statusText = `${getPlayerName(winner)} wins!`;
     } else if (isOnline && !playerIsCurrent) {
@@ -128,7 +130,7 @@ const GameUI: React.FC<GameUIProps> = ({
     return (
         <div className="flex flex-col items-center p-2 md:p-4 bg-stone-100 rounded-lg w-full max-w-lg mx-auto relative">
             {isAITurn && <Spinner />}
-            {(winner !== undefined || gameOverMessage) && <GameOverModal winner={winner} getPlayerName={getPlayerName} onNewGame={onNewGame} onBackToMenu={onBackToMenu} isOnline={isOnline} customMessage={gameOverMessage} onRematch={onRematch} rematchStatus={rematchStatus} />}
+            {(winner !== undefined || gameOverMessage || isDraw) && <GameOverModal winner={winner} getPlayerName={getPlayerName} onNewGame={onNewGame} onBackToMenu={onBackToMenu} isOnline={isOnline} customMessage={gameOverMessage} onRematch={onRematch} rematchStatus={rematchStatus} isDraw={isDraw} />}
             
             <div className="w-full flex flex-col items-center mb-2">
                 <span className="font-semibold text-stone-700">{getPlayerName(opponent)}</span>
