@@ -13,6 +13,10 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// Define custom MIME type for .tsx files.
+// This tells express.static to serve .tsx files as JavaScript.
+express.static.mime.define({'application/javascript': ['tsx', 'ts']});
+
 // In-memory store for rooms
 const rooms = new Map();
 
@@ -89,15 +93,7 @@ io.on('connection', (socket) => {
 });
 
 // Serve static files from the project root.
-// We configure it to set the correct Content-Type for .ts/.tsx files,
-// as the browser expects a JavaScript module.
-app.use(express.static(__dirname, {
-    setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.tsx') || filePath.endsWith('.ts')) {
-            res.setHeader('Content-Type', 'application/javascript');
-        }
-    }
-}));
+app.use(express.static(__dirname));
 
 
 // Serve index.html for any GET request that doesn't match a static file
