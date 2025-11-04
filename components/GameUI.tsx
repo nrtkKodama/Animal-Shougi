@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Socket } from 'socket.io-client';
-import { GameState, Player, PieceType, Position } from '../types';
+import { GameState, Player, PieceType, Position, GameMode } from '../types';
 import Board from './Board';
 import CapturedPieces from './CapturedPieces';
 import GameOverModal from './GameOverModal';
@@ -18,6 +18,7 @@ interface GameUIProps {
     onNewGame: () => void;
     onBackToMenu: () => void;
     isOnline: boolean;
+    gameMode: GameMode;
     socket: Socket | null;
     setGameState: (gameState: GameState) => void;
     gameOverMessage?: string | null;
@@ -35,6 +36,7 @@ const GameUI: React.FC<GameUIProps> = ({
     onNewGame,
     onBackToMenu,
     isOnline,
+    gameMode,
     socket,
     setGameState,
     gameOverMessage
@@ -59,11 +61,21 @@ const GameUI: React.FC<GameUIProps> = ({
         if (isOnline) {
              return player === pov ? 'You' : 'Opponent';
         }
-        return player === Player.SENTE ? 'Player 1 (Sente)' : 'Player 2 (Gote/AI)';
+        if (gameMode === GameMode.PLAYER_VS_PLAYER) {
+            return player === Player.SENTE ? 'Player 1 (Sente)' : 'Player 2 (Gote)';
+        }
+        // Single Player
+        return player === pov ? 'You' : 'AI';
     };
     
     const playerIsCurrent = currentPlayer === pov;
-    const isMyTurn = isOnline ? playerIsCurrent && !gameOverMessage : (currentPlayer === pov && !isAITurn && !gameOverMessage);
+    const isMyTurnForStatusText = (gameMode === GameMode.SINGLE_PLAYER && playerIsCurrent && !isAITurn) || (isOnline && playerIsCurrent);
+
+    const shouldHighlight = !gameOverMessage && (
+        (gameMode === GameMode.PLAYER_VS_PLAYER) ||
+        (gameMode === GameMode.SINGLE_PLAYER && playerIsCurrent && !isAITurn) ||
+        (isOnline && playerIsCurrent)
+    );
 
     let statusText: string;
     if (gameOverMessage) {
@@ -72,17 +84,16 @@ const GameUI: React.FC<GameUIProps> = ({
         statusText = `${getPlayerName(winner)} wins!`;
     } else if (isOnline && !playerIsCurrent) {
         statusText = "Waiting for opponent...";
-    } else if (isMyTurn) {
+    } else if (isMyTurnForStatusText) {
         statusText = `Your Turn ${isCheck ? '- Check!' : ''}`;
-    }
-     else {
+    } else {
         statusText = `${getPlayerName(currentPlayer)}'s Turn ${isCheck ? '- Check!' : ''}`;
     }
 
     const playerPieces = pov === Player.SENTE ? captured[Player.SENTE] : captured[Player.GOTE];
     const opponentPieces = pov === Player.SENTE ? captured[Player.GOTE] : captured[Player.SENTE];
     
-    const isPlayerInputEnabled = isOnline ? playerIsCurrent && !gameOverMessage : !isAITurn;
+    const isPlayerInputEnabled = (isOnline ? playerIsCurrent && !gameOverMessage : !isAITurn) || gameMode === GameMode.PLAYER_VS_PLAYER;
 
     return (
         <div className="flex flex-col items-center p-2 md:p-4 bg-stone-100 rounded-lg w-full max-w-lg mx-auto relative">
@@ -103,7 +114,7 @@ const GameUI: React.FC<GameUIProps> = ({
                 <CapturedPieces pieces={playerPieces} player={pov} pov={pov} onPieceClick={isPlayerInputEnabled ? onCapturedPieceClick : () => {}} selectedPiece={isPlayerInputEnabled ? selectedCapturedPiece : null}/>
             </div>
             
-             <div className={`mt-4 text-center p-2 rounded-lg shadow w-full transition-all duration-300 ${isMyTurn ? 'bg-yellow-200 ring-2 ring-yellow-500' : 'bg-white'}`}>
+             <div className={`mt-4 text-center p-2 rounded-lg shadow w-full transition-all duration-300 ${shouldHighlight ? 'bg-yellow-200 ring-2 ring-yellow-500' : 'bg-white'}`}>
                 <p className={`text-lg font-bold ${isCheck && winner === undefined ? 'text-red-600 animate-pulse' : 'text-stone-800'}`}>
                     {statusText}
                 </p>

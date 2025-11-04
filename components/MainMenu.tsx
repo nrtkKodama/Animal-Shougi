@@ -17,6 +17,12 @@ const MainMenu: React.FC<MainMenuProps> = ({ onSelectMode }) => {
                     Play vs AI
                 </button>
                 <button
+                    onClick={() => onSelectMode(GameMode.PLAYER_VS_PLAYER)}
+                    className="w-full bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-300"
+                >
+                    Player vs Player (Local)
+                </button>
+                <button
                     onClick={() => onSelectMode(GameMode.ONLINE)}
                     className="w-full bg-stone-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-stone-600 transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-stone-400"
                 >

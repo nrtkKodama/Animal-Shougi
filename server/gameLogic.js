@@ -14,28 +14,52 @@ const PieceType = {
     CHICK: 'CHICK',
     HEN: 'HEN',
 };
+
 const BOARD_ROWS = 4;
 const BOARD_COLS = 3;
 
 const INITIAL_BOARD = [
-    [{ type: PieceType.GIRAFFE, player: Player.GOTE }, { type: PieceType.LION, player: Player.GOTE }, { type: PieceType.ELEPHANT, player: Player.GOTE }],
+    [
+        { type: PieceType.GIRAFFE, player: Player.GOTE },
+        { type: PieceType.LION, player: Player.GOTE },
+        { type: PieceType.ELEPHANT, player: Player.GOTE },
+    ],
     [null, { type: PieceType.CHICK, player: Player.GOTE }, null],
     [null, { type: PieceType.CHICK, player: Player.SENTE }, null],
-    [{ type: PieceType.ELEPHANT, player: Player.SENTE }, { type: PieceType.LION, player: Player.SENTE }, { type: PieceType.GIRAFFE, player: Player.SENTE }],
+    [
+        { type: PieceType.ELEPHANT, player: Player.SENTE },
+        { type: PieceType.LION, player: Player.SENTE },
+        { type: PieceType.GIRAFFE, player: Player.SENTE },
+    ],
 ];
 
 const PIECE_MOVES = {
-    [PieceType.LION]: [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]],
-    [PieceType.GIRAFFE]: [[-1, 0], [1, 0], [0, -1], [0, 1]],
-    [PieceType.ELEPHANT]: [[-1, -1], [-1, 1], [1, -1], [1, 1]],
-    [PieceType.CHICK]: [[-1, 0]],
-    [PieceType.HEN]: [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, 0]],
+    [PieceType.LION]: [
+        [-1, -1], [-1, 0], [-1, 1],
+        [0, -1],           [0, 1],
+        [1, -1],  [1, 0],  [1, 1],
+    ],
+    [PieceType.GIRAFFE]: [
+        [-1, 0], [1, 0], [0, -1], [0, 1],
+    ],
+    [PieceType.ELEPHANT]: [
+        [-1, -1], [-1, 1], [1, -1], [1, 1],
+    ],
+    [PieceType.CHICK]: [
+        [-1, 0],
+    ],
+    [PieceType.HEN]: [
+        [-1, -1], [-1, 0], [-1, 1],
+        [0, -1],          [0, 1],
+        [1, 0],
+    ],
 };
 
 const cloneDeep = (obj) => JSON.parse(JSON.stringify(obj));
 
+
 // ==============================
-// State & Core Logic
+// State Generation
 // ==============================
 
 export const createInitialState = (firstPlayer = Player.SENTE) => ({
@@ -45,27 +69,42 @@ export const createInitialState = (firstPlayer = Player.SENTE) => ({
     turn: 1,
     isCheck: false,
     isCheckmate: false,
+    lastMove: null,
+    winner: null,
 });
+
+
+// ==============================
+// Movement Logic
+// ==============================
 
 const getPieceMoves = (piece, from, currentBoard) => {
     const moves = [];
     const moveSet = PIECE_MOVES[piece.type];
+
     moveSet.forEach(([dy, dx]) => {
         const finalDy = piece.player === Player.SENTE ? dy : -dy;
-        const finalDx = dx;
-        const to = { row: from.row + finalDy, col: from.col + finalDx };
+        const to = { row: from.row + finalDy, col: from.col + dx };
+
         if (to.row < 0 || to.row >= BOARD_ROWS || to.col < 0 || to.col >= BOARD_COLS) return;
-        const destinationPiece = currentBoard[to.row][to.col];
-        if (destinationPiece && destinationPiece.player === piece.player) return;
+
+        const dest = currentBoard[to.row][to.col];
+        if (dest && dest.player === piece.player) return;
+
         moves.push(to);
     });
     return moves;
 };
 
-const findLionPosition = (player, currentBoard) => {
+
+// ==============================
+// Check / Attack detection
+// ==============================
+
+const findLionPosition = (player, board) => {
     for (let r = 0; r < BOARD_ROWS; r++) {
         for (let c = 0; c < BOARD_COLS; c++) {
-            const piece = currentBoard[r][c];
+            const piece = board[r][c];
             if (piece && piece.type === PieceType.LION && piece.player === player) {
                 return { row: r, col: c };
             }
@@ -74,13 +113,13 @@ const findLionPosition = (player, currentBoard) => {
     return null;
 };
 
-const isPositionUnderAttack = (position, attackingPlayer, currentBoard) => {
+const isPositionUnderAttack = (pos, attacker, board) => {
     for (let r = 0; r < BOARD_ROWS; r++) {
         for (let c = 0; c < BOARD_COLS; c++) {
-            const piece = currentBoard[r][c];
-            if (piece && piece.player === attackingPlayer) {
-                const moves = getPieceMoves(piece, { row: r, col: c }, currentBoard);
-                if (moves.some(move => move.row === position.row && move.col === position.col)) {
+            const piece = board[r][c];
+            if (piece && piece.player === attacker) {
+                const moves = getPieceMoves(piece, { row: r, col: c }, board);
+                if (moves.some(m => m.row === pos.row && m.col === pos.col)) {
                     return true;
                 }
             }
@@ -89,138 +128,191 @@ const isPositionUnderAttack = (position, attackingPlayer, currentBoard) => {
     return false;
 };
 
-const isKingInCheck = (player, currentBoard) => {
-    const lionPos = findLionPosition(player, currentBoard);
-    if (!lionPos) return true;
+const isKingInCheck = (player, board) => {
+    const lion = findLionPosition(player, board);
+    if (!lion) return true; // Lion captured means player is in a losing state (equivalent to check)
     const opponent = player === Player.SENTE ? Player.GOTE : Player.SENTE;
-    return isPositionUnderAttack(lionPos, opponent, currentBoard);
+    return isPositionUnderAttack(lion, opponent, board);
 };
 
+
+// ==============================
+// Move Enumeration
+// ==============================
+
 // Must be a function declaration to allow recursive calls inside for checkmate checks.
-function getLegalActions(player, currentBoard, currentCaptured) {
+function getLegalActions(player, board, captured) {
     const actions = [];
-    // Moves
+
+    // -----------------------
+    // Move existing pieces
+    // -----------------------
     for (let r = 0; r < BOARD_ROWS; r++) {
         for (let c = 0; c < BOARD_COLS; c++) {
-            const piece = currentBoard[r][c];
+            const piece = board[r][c];
             if (piece && piece.player === player) {
-                const moves = getPieceMoves(piece, { row: r, col: c }, currentBoard);
+                const moves = getPieceMoves(piece, { row: r, col: c }, board);
+
                 for (const move of moves) {
-                    const tempBoard = cloneDeep(currentBoard);
-                    tempBoard[move.row][move.col] = tempBoard[r][c];
-                    tempBoard[r][c] = null;
-                    if (!isKingInCheck(player, tempBoard)) {
+                    const temp = cloneDeep(board);
+                    temp[move.row][move.col] = temp[r][c];
+                    temp[r][c] = null;
+
+                    if (!isKingInCheck(player, temp)) {
                         actions.push({ from: { row: r, col: c }, to: move });
                     }
                 }
             }
         }
     }
-    // Drops
-    const uniqueCaptured = [...new Set(currentCaptured[player])];
-    for (const pieceType of uniqueCaptured) {
+
+    // -----------------------
+    // Drop pieces
+    // -----------------------
+    const unique = [...new Set(captured[player])];
+
+    for (const pieceType of unique) {
         for (let r = 0; r < BOARD_ROWS; r++) {
             for (let c = 0; c < BOARD_COLS; c++) {
-                 if (currentBoard[r][c] === null) {
-                    // This is the uchifuzume (illegal checkmate by dropping a chick) check.
-                    if (pieceType === PieceType.CHICK) {
-                        const promotionRow = player === Player.SENTE ? 0 : BOARD_ROWS - 1;
-                        if (r === promotionRow) continue;
-                        const tempBoardForCheckmate = cloneDeep(currentBoard);
-                        tempBoardForCheckmate[r][c] = { type: pieceType, player };
-                        const opponent = player === Player.SENTE ? Player.GOTE : Player.SENTE;
-                        if (isKingInCheck(opponent, tempBoardForCheckmate) && getLegalActions(opponent, tempBoardForCheckmate, currentCaptured).length === 0) {
-                            continue;
-                        }
+                if (board[r][c] !== null) continue;
+
+                // chick cannot be dropped in promotion row
+                const promotionRow = player === Player.SENTE ? 0 : BOARD_ROWS - 1;
+                if (pieceType === PieceType.CHICK && r === promotionRow) {
+                    continue;
+                }
+                
+                // Uchifuzume (illegal checkmate by dropping a chick) check.
+                if (pieceType === PieceType.CHICK) {
+                    const tempBoardForCheckmate = cloneDeep(board);
+                    tempBoardForCheckmate[r][c] = { type: pieceType, player };
+                    const opponent = player === Player.SENTE ? Player.GOTE : Player.SENTE;
+                    if (isKingInCheck(opponent, tempBoardForCheckmate) && getLegalActions(opponent, tempBoardForCheckmate, captured).length === 0) {
+                        continue; // This move is illegal, so skip it.
                     }
-                    const tempBoard = cloneDeep(currentBoard);
-                    tempBoard[r][c] = { type: pieceType, player };
-                    if (!isKingInCheck(player, tempBoard)) {
-                        actions.push({ pieceType, to: { row: r, col: c }});
-                    }
-                 }
+                }
+
+                const temp = cloneDeep(board);
+                temp[r][c] = { type: pieceType, player };
+
+                if (!isKingInCheck(player, temp)) {
+                    actions.push({ pieceType, to: { row: r, col: c } });
+                }
             }
         }
     }
     return actions;
 };
 
-const hasAnyValidMove = (player, currentBoard, currentCaptured) => {
-    return getLegalActions(player, currentBoard, currentCaptured).length > 0;
-};
+const hasAnyValidMove = (...args) => getLegalActions(...args).length > 0;
 
-const checkForWinner = (currentBoard, nextPlayer, currentCaptured) => {
-    const senteLionPos = findLionPosition(Player.SENTE, currentBoard);
-    const goteLionPos = findLionPosition(Player.GOTE, currentBoard);
-    if (!senteLionPos) return Player.GOTE;
-    if (!goteLionPos) return Player.SENTE;
-    const sentePromotionRow = 0;
-    if (senteLionPos.row === sentePromotionRow && !isPositionUnderAttack(senteLionPos, Player.GOTE, currentBoard)) {
+
+// ==============================
+// Winner Check
+// ==============================
+
+const checkForWinner = (board, nextPlayer, captured) => {
+    const sl = findLionPosition(Player.SENTE, board);
+    const gl = findLionPosition(Player.GOTE, board);
+
+    if (!sl) return Player.GOTE;
+    if (!gl) return Player.SENTE;
+
+    const slGoal = 0;
+    if (sl.row === slGoal && !isPositionUnderAttack(sl, Player.GOTE, board)) {
         return Player.SENTE;
     }
-    const gotePromotionRow = BOARD_ROWS - 1;
-    if (goteLionPos.row === gotePromotionRow && !isPositionUnderAttack(goteLionPos, Player.SENTE, currentBoard)) {
+
+    const glGoal = BOARD_ROWS - 1;
+    if (gl.row === glGoal && !isPositionUnderAttack(gl, Player.SENTE, board)) {
         return Player.GOTE;
     }
-    if (!hasAnyValidMove(nextPlayer, currentBoard, currentCaptured)) {
+
+    if (!hasAnyValidMove(nextPlayer, board, captured)) {
         return nextPlayer === Player.SENTE ? Player.GOTE : Player.SENTE;
     }
     return undefined;
 };
 
-export const applyAction = (gameState, action) => {
-    const newGameState = cloneDeep(gameState);
-    const currentActionPlayer = newGameState.currentPlayer;
-    
+
+// ==============================
+// applyAction (synced with client)
+// ==============================
+
+export const applyAction = (state, action) => {
+    const newState = cloneDeep(state);
+    const currentActionPlayer = newState.currentPlayer;
+
     if (!action) {
-        console.error("applyAction received null or undefined action");
-        return gameState;
+        console.error("applyAction: null/undefined action");
+        return state;
     }
 
+    // ensure captured exists
+    newState.captured ??= { [Player.SENTE]: [], [Player.GOTE]: [] };
+    newState.captured[Player.SENTE] ??= [];
+    newState.captured[Player.GOTE] ??= [];
+
+    // ---------------------
+    // MOVE
+    // ---------------------
     if ('from' in action) {
-        const move = action;
-        const pieceToMove = newGameState.board[move.from.row][move.from.col];
-        if (!pieceToMove) {
+        const { from, to } = action;
+        const piece = newState.board[from.row][from.col];
+        if (!piece) {
             console.error("Invalid move: no piece at source");
-            return gameState;
+            return state;
         }
 
-        const capturedPiece = newGameState.board[move.to.row][move.to.col];
-        if (capturedPiece) {
-            const capturedType = capturedPiece.type === PieceType.HEN ? PieceType.CHICK : capturedPiece.type;
-            newGameState.captured[currentActionPlayer].push(capturedType);
+        const taken = newState.board[to.row][to.col];
+        if (taken) {
+            const type = taken.type === PieceType.HEN ? PieceType.CHICK : taken.type;
+            newState.captured[currentActionPlayer].push(type);
         }
-        
-        newGameState.board[move.to.row][move.to.col] = pieceToMove;
-        newGameState.board[move.from.row][move.from.col] = null;
 
-        const promotionRow = currentActionPlayer === Player.SENTE ? 0 : BOARD_ROWS - 1;
-        if (pieceToMove.type === PieceType.CHICK && move.to.row === promotionRow) {
-            pieceToMove.type = PieceType.HEN;
+        newState.board[to.row][to.col] = piece;
+        newState.board[from.row][from.col] = null;
+
+        // promotion
+        const pr = currentActionPlayer === Player.SENTE ? 0 : BOARD_ROWS - 1;
+        if (piece.type === PieceType.CHICK && to.row === pr) {
+            newState.board[to.row][to.col].type = PieceType.HEN;
         }
-        newGameState.lastMove = move;
-    } else if ('pieceType' in action) {
-        const drop = action;
-        newGameState.board[drop.to.row][drop.to.col] = { type: drop.pieceType, player: currentActionPlayer };
-        const pieceIndex = newGameState.captured[currentActionPlayer].indexOf(drop.pieceType);
-        if (pieceIndex > -1) {
-            newGameState.captured[currentActionPlayer].splice(pieceIndex, 1);
-        }
-        newGameState.lastMove = undefined;
-    } else {
-        console.error("Invalid action object:", action);
-        return gameState;
+
+        newState.lastMove = { type: 'move', from, to };
+    }
+    // ---------------------
+    // DROP
+    // ---------------------
+    else if ('pieceType' in action) {
+        const { pieceType, to } = action;
+
+        newState.board[to.row][to.col] = {
+            type: pieceType,
+            player: currentActionPlayer
+        };
+
+        const idx = newState.captured[currentActionPlayer].indexOf(pieceType);
+        if (idx > -1) newState.captured[currentActionPlayer].splice(idx, 1);
+
+        newState.lastMove = undefined; // Drops clear the last move highlight
+    }
+    else {
+        console.error("Invalid action object", action);
+        return state;
     }
 
+    // turn + switch player (Synced with client logic)
     const nextPlayer = currentActionPlayer === Player.SENTE ? Player.GOTE : Player.SENTE;
-    newGameState.currentPlayer = nextPlayer;
-    if (currentActionPlayer === Player.GOTE || newGameState.turn === 0) {
-         newGameState.turn++;
+    newState.currentPlayer = nextPlayer;
+    if (currentActionPlayer === Player.GOTE) {
+         newState.turn++;
     }
-    
-    newGameState.isCheck = isKingInCheck(nextPlayer, newGameState.board);
-    newGameState.winner = checkForWinner(newGameState.board, nextPlayer, newGameState.captured);
-    newGameState.isCheckmate = !!newGameState.winner;
-    
-    return newGameState;
+
+    // status
+    newState.isCheck = isKingInCheck(newState.currentPlayer, newState.board);
+    newState.winner = checkForWinner(newState.board, newState.currentPlayer, newState.captured);
+    newState.isCheckmate = !!newState.winner;
+
+    return newState;
 };

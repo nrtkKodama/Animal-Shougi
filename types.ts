@@ -53,6 +53,7 @@ export interface GameState {
 
 export enum GameMode {
     SINGLE_PLAYER = 'SINGLE_PLAYER',
+    PLAYER_VS_PLAYER = 'PLAYER_VS_PLAYER',
     ONLINE = 'ONLINE',
 }
 

@@ -10,7 +10,7 @@ import { GameMode, View, Player, Action, GameState } from './types';
 function App() {
     const [view, setView] = useState<View>('menu');
     const [gameMode, setGameMode] = useState<GameMode | null>(null);
-    const [player, setPlayer] = useState<Player>(Player.SENTE); // POV
+    const [player, setPlayer] = useState<Player>(Player.SENTE); // POV for SP, default for others
     const [isAITurn, setIsAITurn] = useState<boolean>(false);
     const [socket, setSocket] = useState<Socket | null>(null);
     const [gameOverMessage, setGameOverMessage] = useState<string | null>(null);
@@ -36,6 +36,10 @@ function App() {
             resetGame(humanPlayer);
             setPlayer(humanPlayer);
             setView('game');
+        } else if (mode === GameMode.PLAYER_VS_PLAYER) {
+            resetGame(Player.SENTE); // Start with Player 1 (Sente)
+            setPlayer(Player.SENTE); // Default POV, will be overridden by currentPlayer
+            setView('game');
         } else if (mode === GameMode.ONLINE) {
             setView('online-lobby');
         }
@@ -53,9 +57,13 @@ function App() {
 
     const handleNewGame = () => {
         setGameOverMessage(null);
-        const humanPlayer = Math.random() < 0.5 ? Player.SENTE : Player.GOTE;
-        resetGame(humanPlayer);
-        setPlayer(humanPlayer);
+        if (gameMode === GameMode.SINGLE_PLAYER) {
+            const humanPlayer = Math.random() < 0.5 ? Player.SENTE : Player.GOTE;
+            resetGame(humanPlayer);
+            setPlayer(humanPlayer);
+        } else if (gameMode === GameMode.PLAYER_VS_PLAYER) {
+            resetGame(Player.SENTE);
+        }
     };
     
     const handleGameStart = useCallback((newSocket: Socket, initialState: GameState, assignedPlayer: Player) => {
@@ -131,7 +139,7 @@ function App() {
                 return (
                     <GameUI
                         gameState={gameState}
-                        pov={player}
+                        pov={gameMode === GameMode.PLAYER_VS_PLAYER ? gameState.currentPlayer : player}
                         isAITurn={isAITurn && gameMode === GameMode.SINGLE_PLAYER}
                         selectedPosition={selectedPosition}
                         selectedCapturedPiece={selectedCapturedPiece}
@@ -141,6 +149,7 @@ function App() {
                         onNewGame={handleNewGame}
                         onBackToMenu={handleBackToMenu}
                         isOnline={gameMode === GameMode.ONLINE}
+                        gameMode={gameMode}
                         socket={socket}
                         setGameState={setGameState}
                         gameOverMessage={gameOverMessage}
