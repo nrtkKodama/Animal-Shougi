@@ -3,6 +3,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 import { createInitialState, applyAction } from './server/gameLogic.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -11,16 +12,6 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
-
-// Serve static files from the root directory, including .tsx files
-// This middleware must come before the SPA fallback route.
-app.use(express.static(__dirname, {
-    setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.tsx') || filePath.endsWith('.ts')) {
-            res.setHeader('Content-Type', 'application/javascript');
-        }
-    }
-}));
 
 // In-memory store for rooms
 const rooms = new Map();
@@ -97,8 +88,41 @@ io.on('connection', (socket) => {
     });
 });
 
+// Custom middleware to serve static files correctly.
+app.use((req, res, next) => {
+    if (req.method !== 'GET') {
+      return next();
+    }
+
+    const requestedFile = req.path === '/' ? '/index.html' : req.path;
+    const filePath = path.join(__dirname, requestedFile);
+
+    // Security check to prevent accessing files outside the project root.
+    if (!path.resolve(filePath).startsWith(__dirname)) {
+      return res.status(403).send('Forbidden');
+    }
+
+    // Check if the file exists.
+    fs.access(filePath, fs.constants.F_OK, (err) => {
+      if (err) {
+        // File not found, pass to the next handler (the SPA fallback).
+        return next();
+      }
+
+      // If the file exists, serve it.
+      // Set the correct Content-Type for TS/TSX files.
+      if (filePath.endsWith('.tsx') || filePath.endsWith('.ts')) {
+        res.setHeader('Content-Type', 'application/javascript');
+      }
+
+      const readStream = fs.createReadStream(filePath);
+      readStream.pipe(res);
+    });
+});
+
+
 // Serve index.html for any GET request that doesn't match a static file
-// This should be the last route handler.
+// This acts as a fallback for Single Page Applications.
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
