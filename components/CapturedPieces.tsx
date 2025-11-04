@@ -25,7 +25,7 @@ const CapturedPieces: React.FC<CapturedPiecesProps> = ({ pieces, player, pov, on
                 {uniquePieces.map(pieceType => (
                     <div
                         key={pieceType}
-                        className={`relative w-12 h-12 md:w-16 md:h-16 p-1 rounded-lg transition-all ${selectedPiece === pieceType ? 'bg-blue-300' : ''}`}
+                        className={`relative w-12 h-12 md:w-16 md:h-16 p-1 rounded-lg transition-all ${selectedPiece === pieceType ? 'bg-blue-300 ring-4 ring-blue-500' : ''}`}
                         onClick={() => onPieceClick(pieceType)}
                     >
                         {/* A captured piece belongs to the player who captured it */}

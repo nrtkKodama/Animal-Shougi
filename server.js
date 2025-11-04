@@ -43,19 +43,32 @@ io.on('connection', (socket) => {
             return;
         }
 
-        // Add player to room and assign role
-        const playerRole = room.players.length === 0 ? 0 : 1; // 0: Sente, 1: Gote
-        room.players.push({ id: socket.id, role: playerRole });
-        console.log(`User ${socket.id} joined room ${roomCode} as player role ${playerRole}`);
+        // Add player to room (role will be assigned just before game starts)
+        room.players.push({ id: socket.id });
+        console.log(`User ${socket.id} joined room ${roomCode}. Total players: ${room.players.length}`);
 
         // If room has 1 player, wait for another
         if (room.players.length < 2) {
             socket.emit('waiting_for_opponent');
-        } 
+        }
         // If room is now full, start the game
         else {
+            // Randomly assign roles (Sente/Gote)
+            const player1 = room.players[0];
+            const player2 = room.players[1];
+
+            if (Math.random() < 0.5) {
+                player1.role = 0; // Sente
+                player2.role = 1; // Gote
+            } else {
+                player1.role = 1; // Gote
+                player2.role = 0; // Sente
+            }
+
             room.gameState = createInitialState();
             console.log(`Game starting in room ${roomCode}.`);
+            console.log(`- Player ${player1.id} assigned role ${player1.role} (${player1.role === 0 ? 'Sente' : 'Gote'})`);
+            console.log(`- Player ${player2.id} assigned role ${player2.role} (${player2.role === 0 ? 'Sente' : 'Gote'})`);
             
             // Send game start event to both players with their assigned roles
             room.players.forEach(player => {

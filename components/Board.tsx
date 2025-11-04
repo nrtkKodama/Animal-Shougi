@@ -32,7 +32,7 @@ const Board: React.FC<BoardProps> = ({ board, selectedPosition, validMoves, onSq
 
         const validMoveIndicator = isValidMove ? (
             <div className="absolute inset-0 flex items-center justify-center" style={{ pointerEvents: 'none' }}>
-                <div className="w-1/3 h-1/3 bg-blue-400/50 rounded-full"></div>
+                <div className="w-1/2 h-1/2 bg-blue-500/60 rounded-full"></div>
             </div>
         ) : null;
 

@@ -1,8 +1,8 @@
 import React from 'react';
-import { GameMode, Difficulty } from '../types';
+import { GameMode } from '../types';
 
 interface MainMenuProps {
-    onSelectMode: (mode: GameMode, difficulty?: Difficulty) => void;
+    onSelectMode: (mode: GameMode) => void;
 }
 
 const MainMenu: React.FC<MainMenuProps> = ({ onSelectMode }) => {
@@ -10,30 +10,12 @@ const MainMenu: React.FC<MainMenuProps> = ({ onSelectMode }) => {
         <div className="bg-white p-6 md:p-8 rounded-xl shadow-lg border border-stone-200 text-center">
             <h2 className="text-2xl font-bold mb-6 text-yellow-800">Select Game Mode</h2>
             <div className="space-y-4">
-                {/* AI Difficulty Selection */}
-                <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                    <h3 className="text-lg font-semibold text-yellow-800 -mt-1 mb-3">Play vs AI</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                        <button
-                            onClick={() => onSelectMode(GameMode.SINGLE_PLAYER, Difficulty.EASY)}
-                            className="w-full bg-yellow-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-yellow-600 transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-yellow-300"
-                        >
-                            簡単 (Easy)
-                        </button>
-                        <button
-                            onClick={() => onSelectMode(GameMode.SINGLE_PLAYER, Difficulty.MEDIUM)}
-                            className="w-full bg-yellow-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-yellow-700 transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-yellow-400"
-                        >
-                            普通 (Medium)
-                        </button>
-                        <button
-                            onClick={() => onSelectMode(GameMode.SINGLE_PLAYER, Difficulty.HARD)}
-                            className="w-full bg-yellow-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-yellow-800 transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-yellow-500"
-                        >
-                            難しい (Hard)
-                        </button>
-                    </div>
-                </div>
+                <button
+                    onClick={() => onSelectMode(GameMode.SINGLE_PLAYER)}
+                    className="w-full bg-yellow-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-yellow-700 transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-yellow-400"
+                >
+                    Play vs AI
+                </button>
                 
                 <button
                     onClick={() => onSelectMode(GameMode.PLAYER_VS_PLAYER)}
@@ -49,7 +31,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ onSelectMode }) => {
                 </button>
             </div>
             <a
-                href="http://rererenanora.web.fc2.com/rule.html"
+                href="https://www.shogi.or.jp/column/2016/11/post_43.html"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block mt-6 text-sm text-stone-600 p-3 bg-stone-100 rounded-lg hover:bg-stone-200 transition-colors cursor-pointer"

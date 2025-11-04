@@ -3,6 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import MainMenu from './components/MainMenu';
 import GameUI from './components/GameUI';
 import OnlineLobby from './components/OnlineLobby';
+import AiSetupMenu from './components/AiSetupMenu'; // New component for AI game setup
 import { useGameLogic } from './hooks/useGameLogic';
 import { getAiMove } from './services/geminiService';
 import { GameMode, View, Player, Action, GameState, Difficulty } from './types';
@@ -29,26 +30,28 @@ function App() {
         getLegalActionsForCurrentPlayer,
     } = useGameLogic();
 
-    const handleSelectMode = (mode: GameMode, difficulty?: Difficulty) => {
+    const handleSelectMode = (mode: GameMode) => {
         setGameMode(mode);
         setGameOverMessage(null);
         if (mode === GameMode.SINGLE_PLAYER) {
-            if (difficulty) {
-                setDifficulty(difficulty);
-            }
-            const humanPlayer = Math.random() < 0.5 ? Player.SENTE : Player.GOTE;
-            resetGame(humanPlayer);
-            setPlayer(humanPlayer);
-            setView('game');
+            setView('ai-setup');
         } else if (mode === GameMode.PLAYER_VS_PLAYER) {
-            resetGame(Player.SENTE); // Start with Player 1 (Sente)
-            setPlayer(Player.SENTE); // Default POV for PvP is always Sente
+            resetGame(Player.SENTE);
+            setPlayer(Player.SENTE);
             setView('game');
         } else if (mode === GameMode.ONLINE) {
             const newSocket = io();
             setSocket(newSocket);
             setView('online-lobby');
         }
+    };
+
+    const handleStartAiGame = (selectedDifficulty: Difficulty, selectedPlayer: Player) => {
+        setGameMode(GameMode.SINGLE_PLAYER);
+        setDifficulty(selectedDifficulty);
+        setPlayer(selectedPlayer);
+        resetGame(Player.SENTE); // The game always starts with Sente's turn.
+        setView('game');
     };
 
     const handleBackToMenu = useCallback(() => {
@@ -64,9 +67,8 @@ function App() {
     const handleNewGame = () => {
         setGameOverMessage(null);
         if (gameMode === GameMode.SINGLE_PLAYER) {
-            const humanPlayer = Math.random() < 0.5 ? Player.SENTE : Player.GOTE;
-            resetGame(humanPlayer);
-            setPlayer(humanPlayer);
+            // Re-start with the same settings
+            resetGame(Player.SENTE);
         } else if (gameMode === GameMode.PLAYER_VS_PLAYER) {
             resetGame(Player.SENTE);
         }
@@ -121,7 +123,7 @@ function App() {
         const isSinglePlayer = gameMode === GameMode.SINGLE_PLAYER;
         const aiPlayer = player === Player.SENTE ? Player.GOTE : Player.SENTE;
         
-        if (isSinglePlayer && gameState.currentPlayer === aiPlayer && !gameState.winner && !isAITurn) {
+        if (isSinglePlayer && gameState.currentPlayer === aiPlayer && !gameState.winner && !gameState.isDraw && !isAITurn) {
             const timer = setTimeout(() => runAiMove(), 500);
             return () => clearTimeout(timer);
         }
@@ -156,6 +158,8 @@ function App() {
         switch (view) {
             case 'menu':
                 return <MainMenu onSelectMode={handleSelectMode} />;
+            case 'ai-setup':
+                return <AiSetupMenu onStartGame={handleStartAiGame} onBackToMenu={handleBackToMenu} />;
             case 'online-lobby':
                 return <OnlineLobby socket={socket} onBackToMenu={handleBackToMenu} />;
             case 'game':

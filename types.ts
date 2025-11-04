@@ -65,4 +65,4 @@ export enum Difficulty {
     HARD = 'HARD',
 }
 
-export type View = 'menu' | 'online-lobby' | 'game';
+export type View = 'menu' | 'online-lobby' | 'game' | 'ai-setup';
