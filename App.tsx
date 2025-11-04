@@ -1,18 +1,19 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
+import { Socket } from 'socket.io-client';
 import MainMenu from './components/MainMenu';
 import GameUI from './components/GameUI';
 import OnlineLobby from './components/OnlineLobby';
 import { useGameLogic } from './hooks/useGameLogic';
 import { getSimpleAiMove } from './services/simpleAiService';
-// import { getGeminiAiMove } from './services/geminiService'; // Can be swapped in
-import { GameMode, View, Player, Action } from './types';
+import { GameMode, View, Player, Action, GameState } from './types';
 
 function App() {
     const [view, setView] = useState<View>('menu');
     const [gameMode, setGameMode] = useState<GameMode | null>(null);
-    const [player, setPlayer] = useState<Player>(Player.SENTE);
+    const [player, setPlayer] = useState<Player>(Player.SENTE); // POV
     const [isAITurn, setIsAITurn] = useState<boolean>(false);
+    const [socket, setSocket] = useState<Socket | null>(null);
+    const [gameOverMessage, setGameOverMessage] = useState<string | null>(null);
 
     const {
         gameState,
@@ -23,14 +24,16 @@ function App() {
         handleCapturedPieceClick,
         applyAction,
         resetGame,
+        setGameState,
+        getLegalActionsForCurrentPlayer,
     } = useGameLogic();
 
     const handleSelectMode = (mode: GameMode) => {
         setGameMode(mode);
+        setGameOverMessage(null);
         if (mode === GameMode.SINGLE_PLAYER) {
-            resetGame();
-            // Randomly choose if player is Sente or Gote
             const humanPlayer = Math.random() < 0.5 ? Player.SENTE : Player.GOTE;
+            resetGame(humanPlayer);
             setPlayer(humanPlayer);
             setView('game');
         } else if (mode === GameMode.ONLINE) {
@@ -38,38 +41,64 @@ function App() {
         }
     };
 
-    const handleBackToMenu = () => {
+    const handleBackToMenu = useCallback(() => {
+        if (socket) {
+            socket.disconnect();
+            setSocket(null);
+        }
         setView('menu');
         setGameMode(null);
-    };
+        setGameOverMessage(null);
+    }, [socket]);
 
     const handleNewGame = () => {
-        resetGame();
-         const humanPlayer = Math.random() < 0.5 ? Player.SENTE : Player.GOTE;
-         setPlayer(humanPlayer);
+        setGameOverMessage(null);
+        const humanPlayer = Math.random() < 0.5 ? Player.SENTE : Player.GOTE;
+        resetGame(humanPlayer);
+        setPlayer(humanPlayer);
     };
+    
+    const handleGameStart = useCallback((newSocket: Socket, initialState: GameState, assignedPlayer: Player) => {
+        setSocket(newSocket);
+        setGameState(initialState);
+        setPlayer(assignedPlayer);
+        setView('game');
+    }, [setGameState]);
+
+    const handleMove = useCallback((action: Action) => {
+        if (socket) {
+            socket.emit('move', action);
+        } else {
+            applyAction(action);
+        }
+    }, [socket, applyAction]);
 
     const runAiMove = useCallback(async () => {
         setIsAITurn(true);
         try {
-            // To use the Gemini AI, uncomment the line below and the corresponding import.
-            // const aiMove: Action = await getGeminiAiMove(gameState);
-            const aiMove: Action = await getSimpleAiMove(gameState);
+            const legalActions = getLegalActionsForCurrentPlayer();
+            if (legalActions.length === 0) {
+                 setIsAITurn(false);
+                 return;
+            }
+            const aiMove = await getSimpleAiMove(legalActions, gameState);
             applyAction(aiMove);
         } catch (error) {
-            console.error("AI failed to make a move:", error);
-            // Handle AI error, e.g. show a message to the user
+            console.error("AI move failed:", error);
+            // This case should ideally not be reached if checkmate logic is correct.
+            setGameOverMessage('AI is confused and forfeits. You win!');
         } finally {
             setIsAITurn(false);
         }
-    }, [gameState, applyAction]);
+    }, [gameState, applyAction, getLegalActionsForCurrentPlayer]);
 
     useEffect(() => {
         const isSinglePlayer = gameMode === GameMode.SINGLE_PLAYER;
         const aiPlayer = player === Player.SENTE ? Player.GOTE : Player.SENTE;
         
         if (isSinglePlayer && gameState.currentPlayer === aiPlayer && !gameState.winner && !isAITurn) {
-            runAiMove();
+            const timer = setTimeout(() => runAiMove(), 500);
+            return () => clearTimeout(timer);
         }
     }, [gameMode, player, gameState, isAITurn, runAiMove]);
 
@@ -79,22 +108,25 @@ function App() {
             case 'menu':
                 return <MainMenu onSelectMode={handleSelectMode} />;
             case 'online-lobby':
-                return <OnlineLobby onBackToMenu={handleBackToMenu} />;
+                return <OnlineLobby onBackToMenu={handleBackToMenu} onGameStart={handleGameStart} />;
             case 'game':
                 if (!gameMode) return <MainMenu onSelectMode={handleSelectMode} />;
                 return (
                     <GameUI
                         gameState={gameState}
                         pov={player}
-                        isAITurn={isAITurn}
+                        isAITurn={isAITurn && gameMode === GameMode.SINGLE_PLAYER}
                         selectedPosition={selectedPosition}
                         selectedCapturedPiece={selectedCapturedPiece}
                         validMoves={validMoves}
-                        onSquareClick={handleSquareClick}
-                        onCapturedPieceClick={handleCapturedPieceClick}
+                        onSquareClick={(row, col) => handleSquareClick(row, col, handleMove)}
+                        onCapturedPieceClick={(pieceType) => handleCapturedPieceClick(pieceType, handleMove)}
                         onNewGame={handleNewGame}
                         onBackToMenu={handleBackToMenu}
                         isOnline={gameMode === GameMode.ONLINE}
+                        socket={socket}
+                        setGameState={setGameState}
+                        gameOverMessage={gameOverMessage}
                     />
                 );
             default:

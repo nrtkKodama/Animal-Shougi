@@ -39,22 +39,26 @@ const Board: React.FC<BoardProps> = ({ board, selectedPosition, validMoves, onSq
         return (
             <div key={`${row}-${col}`} className="relative" onClick={() => onSquareClick(row, col)}>
                 <div className={squareClasses}>
-                    {piece && <Piece pieceType={piece.type} player={piece.player} />}
+                    {piece && <Piece pieceType={piece.type} player={piece.player} pov={pov} />}
                 </div>
                 {validMoveIndicator}
             </div>
         );
     };
 
-    const boardRows = Array.from({ length: board.length }, (_, i) => i);
+    const boardRows = isRotated
+        ? Array.from({ length: board.length }, (_, i) => board.length - 1 - i)
+        : Array.from({ length: board.length }, (_, i) => i);
+
+    const colOrder = isRotated
+        ? Array.from({ length: board[0].length }, (_, i) => board[0].length - 1 - i)
+        : Array.from({ length: board[0].length }, (_, i) => i);
     
     return (
         <div className="grid grid-cols-3 gap-1 md:gap-2 p-1 md:p-2 bg-yellow-700 rounded-lg shadow-lg">
             {boardRows.map(rowIndex =>
-                board[rowIndex].map((_, colIndex) => {
-                    const r = isRotated ? board.length - 1 - rowIndex : rowIndex;
-                    const c = isRotated ? board[0].length - 1 - colIndex : colIndex;
-                    return renderSquare(r, c);
+                colOrder.map(colIndex => {
+                    return renderSquare(rowIndex, colIndex);
                 })
             )}
         </div>

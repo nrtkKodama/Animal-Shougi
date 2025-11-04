@@ -1,16 +1,16 @@
-
 import React from 'react';
 import { PieceType, Player } from '../types';
 import Piece from './Piece';
 
 interface CapturedPiecesProps {
     pieces: PieceType[];
-    player: Player;
+    player: Player; // The player who owns this captured piece area
+    pov: Player; // The player who is viewing the board
     onPieceClick: (piece: PieceType) => void;
     selectedPiece: PieceType | null;
 }
 
-const CapturedPieces: React.FC<CapturedPiecesProps> = ({ pieces, player, onPieceClick, selectedPiece }) => {
+const CapturedPieces: React.FC<CapturedPiecesProps> = ({ pieces, player, pov, onPieceClick, selectedPiece }) => {
     const pieceCounts = pieces.reduce((acc, piece) => {
         acc[piece] = (acc[piece] || 0) + 1;
         return acc;
@@ -28,7 +28,8 @@ const CapturedPieces: React.FC<CapturedPiecesProps> = ({ pieces, player, onPiece
                         className={`relative w-12 h-12 md:w-16 md:h-16 p-1 rounded-lg transition-all ${selectedPiece === pieceType ? 'bg-blue-300' : ''}`}
                         onClick={() => onPieceClick(pieceType)}
                     >
-                        <Piece pieceType={pieceType} player={player === Player.SENTE ? Player.GOTE : Player.SENTE} />
+                        {/* A captured piece belongs to the player who captured it */}
+                        <Piece pieceType={pieceType} player={player} pov={pov} />
                         {pieceCounts[pieceType] > 1 && (
                             <div className="absolute -top-1 -right-1 bg-yellow-800 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold">
                                 {pieceCounts[pieceType]}

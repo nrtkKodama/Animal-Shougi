@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { PieceType, Player } from '../types';
 import { PIECE_MOVES } from '../constants';
@@ -6,10 +5,12 @@ import { PIECE_MOVES } from '../constants';
 interface PieceProps {
     pieceType: PieceType;
     player: Player;
+    pov: Player; // Add point of view
     className?: string;
 }
 
 const MoveIndicator: React.FC<{ moves: [number, number][] }> = ({ moves }) => {
+    // Moves are always defined from Sente's perspective (up is -y)
     const positions = moves.map(([dy, dx]) => ({
         cx: 50 + dx * 28,
         cy: 50 + dy * 28,
@@ -39,21 +40,23 @@ const pieceSVGs: Record<PieceType, React.ReactElement> = {
     [PieceType.HEN]: <HenIcon />,
 };
 
-const Piece: React.FC<PieceProps> = ({ pieceType, player, className }) => {
+const Piece: React.FC<PieceProps> = ({ pieceType, player, pov, className }) => {
     const isHen = pieceType === PieceType.HEN;
-    const isGote = player === Player.GOTE;
+    
+    // Determine rotation based on if the piece's owner is the one viewing
+    const shouldRotate = player !== pov;
 
-    const fillColor = isGote
+    const fillColor = player === Player.GOTE
       ? "fill-stone-200"
       : (isHen ? "fill-red-200" : "fill-yellow-200");
-    const strokeColor = isGote
+    const strokeColor = player === Player.GOTE
       ? "stroke-stone-500"
       : (isHen ? "stroke-red-500" : "stroke-yellow-800");
 
     return (
         <div className={`w-full h-full cursor-pointer transition-transform duration-150 ease-in-out hover:scale-105 rounded-lg`}>
             <svg viewBox="0 0 100 100" className={`w-full h-full ${className}`}>
-                 <g transform={isGote ? "rotate(180 50 50)" : ""}>
+                 <g transform={shouldRotate ? "rotate(180 50 50)" : ""}>
                     <path
                         d="M 50,5 L 95,35 L 85,95 L 15,95 L 5,35 Z"
                         className={`${fillColor} ${strokeColor}`}
