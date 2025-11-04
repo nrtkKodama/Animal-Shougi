@@ -1,9 +1,9 @@
+
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import fs from 'fs';
 import { createInitialState, applyAction } from './server/gameLogic.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -88,37 +88,16 @@ io.on('connection', (socket) => {
     });
 });
 
-// Custom middleware to serve static files correctly.
-app.use((req, res, next) => {
-    if (req.method !== 'GET') {
-      return next();
+// Serve static files from the project root.
+// We configure it to set the correct Content-Type for .ts/.tsx files,
+// as the browser expects a JavaScript module.
+app.use(express.static(__dirname, {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.tsx') || filePath.endsWith('.ts')) {
+            res.setHeader('Content-Type', 'application/javascript');
+        }
     }
-
-    const requestedFile = req.path === '/' ? '/index.html' : req.path;
-    const filePath = path.join(__dirname, requestedFile);
-
-    // Security check to prevent accessing files outside the project root.
-    if (!path.resolve(filePath).startsWith(__dirname)) {
-      return res.status(403).send('Forbidden');
-    }
-
-    // Check if the file exists.
-    fs.access(filePath, fs.constants.F_OK, (err) => {
-      if (err) {
-        // File not found, pass to the next handler (the SPA fallback).
-        return next();
-      }
-
-      // If the file exists, serve it.
-      // Set the correct Content-Type for TS/TSX files.
-      if (filePath.endsWith('.tsx') || filePath.endsWith('.ts')) {
-        res.setHeader('Content-Type', 'application/javascript');
-      }
-
-      const readStream = fs.createReadStream(filePath);
-      readStream.pipe(res);
-    });
-});
+}));
 
 
 // Serve index.html for any GET request that doesn't match a static file
