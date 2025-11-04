@@ -60,8 +60,9 @@ io.on('connection', (socket) => {
         const roomId = Array.from(socket.rooms).find(r => r !== socket.id);
         
         if (roomId) {
-            console.log(`Move received in room ${roomId}:`, move);
-            socket.to(roomId).emit('move_made', { move });
+            console.log(`Broadcasting move in room ${roomId}:`, move);
+            // Broadcast to everyone in the room (including sender) to keep state in sync
+            io.to(roomId).emit('move_made', { move });
         }
     });
 
@@ -89,4 +90,5 @@ io.on('connection', (socket) => {
 
 server.listen(PORT, () => {
     console.log(`Server listening on *:${PORT}`);
+    console.log(`You can now view your app in the browser: http://localhost:${PORT}`);
 });

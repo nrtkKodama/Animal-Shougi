@@ -1,11 +1,7 @@
 import React from 'react';
 
-interface SpinnerProps {
-    thinking?: boolean;
-}
-
-const Spinner: React.FC<SpinnerProps> = ({ thinking = false }) => {
-    const message = thinking ? "AI is thinking..." : "Waiting for opponent...";
+const Spinner: React.FC = () => {
+    const message = "AI is thinking...";
     return (
         <div className="absolute inset-0 bg-black bg-opacity-50 flex flex-col items-center justify-center rounded-lg z-10">
             <div className="w-16 h-16 border-4 border-t-4 border-t-blue-500 border-gray-200 rounded-full animate-spin"></div>

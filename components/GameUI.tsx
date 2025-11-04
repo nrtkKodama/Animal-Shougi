@@ -62,7 +62,7 @@ const GameUI: React.FC<GameUIProps> = ({ gameMode, onBackToMenu, socket, myPlaye
 
     useEffect(() => {
         if (socket) {
-            const moveMadeHandler = (data: { move: Action, gameState: any }) => {
+            const moveMadeHandler = (data: { move: Action }) => {
                 applyMove(data.move);
             };
             const opponentDisconnectedHandler = () => {
@@ -82,9 +82,13 @@ const GameUI: React.FC<GameUIProps> = ({ gameMode, onBackToMenu, socket, myPlaye
 
     const handleAction = (action: Action) => {
         if (gameMode === GameMode.ONLINE && socket) {
-            socket.emit('make_move', { move: action, gameState });
+            // In online mode, we only emit the move.
+            // The server will broadcast it back to both players to ensure sync.
+            socket.emit('make_move', { move: action });
+        } else {
+            // For local/AI games, apply the move directly.
+            applyMove(action);
         }
-        applyMove(action);
     };
 
     const handleSquareClick = (row: number, col: number) => {
@@ -106,19 +110,16 @@ const GameUI: React.FC<GameUIProps> = ({ gameMode, onBackToMenu, socket, myPlaye
     };
 
     const getStatusMessage = () => {
-        if (opponentDisconnected) {
-            return "Opponent disconnected.";
-        }
-        if (gameState.winner !== undefined) {
-            return `${getPlayerName(gameState.winner)} wins!`;
-        }
+        if (opponentDisconnected) return "Opponent disconnected.";
+        if (gameState.winner !== undefined) return `${getPlayerName(gameState.winner)} wins!`;
         if (gameState.isCheckmate) {
             const winner = gameState.currentPlayer === Player.SENTE ? Player.GOTE : Player.SENTE;
             return `Checkmate! ${getPlayerName(winner)} wins!`;
         }
-        if (gameState.isCheck) {
-            return `${getPlayerName(gameState.currentPlayer)} is in check!`;
-        }
+        if (isThinking) return "AI is thinking...";
+        if (gameMode === GameMode.ONLINE && !isMyTurn && !gameState.winner) return "Waiting for opponent...";
+        if (gameState.isCheck) return `${getPlayerName(gameState.currentPlayer)} is in check!`;
+        
         return `${getPlayerName(gameState.currentPlayer)}'s turn`;
     };
 
@@ -158,7 +159,7 @@ const GameUI: React.FC<GameUIProps> = ({ gameMode, onBackToMenu, socket, myPlaye
                             onSquareClick={isMyTurn ? handleSquareClick : () => {}}
                             lastMove={gameState.lastMove}
                         />
-                        {(isThinking || (gameMode === GameMode.ONLINE && !isMyTurn && !gameState.winner && !opponentDisconnected)) && <Spinner thinking={isThinking} />}
+                        {isThinking && <Spinner />}
                     </div>
 
                     {/* SENTE (Player) Side */}
