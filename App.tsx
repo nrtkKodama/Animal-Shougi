@@ -4,7 +4,7 @@ import MainMenu from './components/MainMenu';
 import GameUI from './components/GameUI';
 import OnlineLobby from './components/OnlineLobby';
 import { useGameLogic } from './hooks/useGameLogic';
-import { getSimpleAiMove } from './services/simpleAiService';
+import { getAiMove } from './services/geminiService';
 import { GameMode, View, Player, Action, GameState } from './types';
 
 function App() {
@@ -81,7 +81,7 @@ function App() {
                  setIsAITurn(false);
                  return;
             }
-            const aiMove = await getSimpleAiMove(legalActions, gameState);
+            const aiMove = await getAiMove(legalActions, gameState);
             applyAction(aiMove);
         } catch (error) {
             console.error("AI move failed:", error);
@@ -105,7 +105,11 @@ function App() {
     useEffect(() => {
         if (socket) {
             const opponentDisconnectedHandler = () => {
-                setGameOverMessage('Opponent disconnected. You win!');
+                setGameOverMessage('Opponent disconnected. Room closed.');
+                setTimeout(() => {
+                    // handleBackToMenu also disconnects the socket
+                    handleBackToMenu();
+                }, 4000);
             };
             socket.on('opponent_disconnected', opponentDisconnectedHandler);
 
@@ -113,7 +117,7 @@ function App() {
                 socket.off('opponent_disconnected', opponentDisconnectedHandler);
             };
         }
-    }, [socket]);
+    }, [socket, handleBackToMenu]);
 
 
     const renderContent = () => {

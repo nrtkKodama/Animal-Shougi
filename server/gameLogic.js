@@ -101,7 +101,7 @@ const getLegalActions = (player, currentBoard, currentCaptured) => {
     for (const pieceType of uniqueCaptured) {
         for (let r = 0; r < BOARD_ROWS; r++) {
             for (let c = 0; c < BOARD_COLS; c++) {
-                if (currentBoard[r][c] === null) {
+                 if (currentBoard[r][c] === null) {
                     if (pieceType === PieceType.CHICK) {
                         const promotionRow = player === Player.SENTE ? 0 : BOARD_ROWS - 1;
                         if (r === promotionRow) continue;
@@ -115,9 +115,9 @@ const getLegalActions = (player, currentBoard, currentCaptured) => {
                     const tempBoard = cloneDeep(currentBoard);
                     tempBoard[r][c] = { type: pieceType, player };
                     if (!isKingInCheck(player, tempBoard)) {
-                        actions.push({ pieceType, to: { row: r, col: c } });
+                        actions.push({ pieceType, to: { row: r, col: c }});
                     }
-                }
+                 }
             }
         }
     }
@@ -149,45 +149,55 @@ const checkForWinner = (currentBoard, nextPlayer, currentCaptured) => {
 
 export const applyAction = (gameState, action) => {
     const newGameState = cloneDeep(gameState);
-    const { currentPlayer } = newGameState;
+    const currentActionPlayer = newGameState.currentPlayer;
+    
+    if (!action) {
+        console.error("applyAction received null or undefined action");
+        return gameState;
+    }
 
     if ('from' in action) {
-        const { from, to } = action;
-        const pieceToMove = newGameState.board[from.row][from.col];
-        // Trust the client to send a valid move if it's the player's turn.
-        // The turn itself is validated in server.js
-        if (!pieceToMove) return gameState;
-        
-        const capturedPiece = newGameState.board[to.row][to.col];
+        const move = action;
+        const pieceToMove = newGameState.board[move.from.row][move.from.col];
+        if (!pieceToMove) {
+            console.error("Invalid move: no piece at source");
+            return gameState;
+        }
+
+        const capturedPiece = newGameState.board[move.to.row][move.to.col];
         if (capturedPiece) {
             const capturedType = capturedPiece.type === PieceType.HEN ? PieceType.CHICK : capturedPiece.type;
-            newGameState.captured[currentPlayer].push(capturedType);
+            newGameState.captured[currentActionPlayer].push(capturedType);
         }
         
-        newGameState.board[to.row][to.col] = pieceToMove;
-        newGameState.board[from.row][from.col] = null;
+        newGameState.board[move.to.row][move.to.col] = pieceToMove;
+        newGameState.board[move.from.row][move.from.col] = null;
 
-        const promotionRow = currentPlayer === Player.SENTE ? 0 : BOARD_ROWS - 1;
-        if (pieceToMove.type === PieceType.CHICK && to.row === promotionRow) {
+        const promotionRow = currentActionPlayer === Player.SENTE ? 0 : BOARD_ROWS - 1;
+        if (pieceToMove.type === PieceType.CHICK && move.to.row === promotionRow) {
             pieceToMove.type = PieceType.HEN;
         }
-        newGameState.lastMove = action;
-    } else { // Drop logic
-        const { pieceType, to } = action;
-        const pieceIndex = newGameState.captured[currentPlayer].indexOf(pieceType);
-        // Only proceed if player has the piece
+        newGameState.lastMove = move;
+    } else if ('pieceType' in action) {
+        const drop = action;
+        newGameState.board[drop.to.row][drop.to.col] = { type: drop.pieceType, player: currentActionPlayer };
+        const pieceIndex = newGameState.captured[currentActionPlayer].indexOf(drop.pieceType);
         if (pieceIndex > -1) {
-            newGameState.board[to.row][to.col] = { type: pieceType, player: currentPlayer };
-            newGameState.captured[currentPlayer].splice(pieceIndex, 1);
+            newGameState.captured[currentActionPlayer].splice(pieceIndex, 1);
         }
         newGameState.lastMove = undefined;
+    } else {
+        console.error("Invalid action object:", action);
+        return gameState;
     }
 
-    const nextPlayer = currentPlayer === Player.SENTE ? Player.GOTE : Player.SENTE;
+    const nextPlayer = currentActionPlayer === Player.SENTE ? Player.GOTE : Player.SENTE;
     newGameState.currentPlayer = nextPlayer;
-    if (currentPlayer === Player.GOTE) {
-        newGameState.turn++;
+    // This logic is synchronized with the client-side `useGameLogic.ts` to prevent desync issues.
+    if (currentActionPlayer === Player.GOTE || newGameState.turn === 0) {
+         newGameState.turn++;
     }
+    
     newGameState.isCheck = isKingInCheck(nextPlayer, newGameState.board);
     newGameState.winner = checkForWinner(newGameState.board, nextPlayer, newGameState.captured);
     newGameState.isCheckmate = !!newGameState.winner;

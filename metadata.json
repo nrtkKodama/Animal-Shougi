@@ -1,5 +1,5 @@
 {
   "name": "Dobutsu Shogi AI",
-  "description": "A web-based Dobutsu Shogi (Animal Shogi) application where you can play against a powerful Gemini-powered AI in 'Thinking Mode' or enjoy a local two-player game. Features a clean, responsive interface for both mobile and desktop play.",
+  "description": "A web-based Dobutsu Shogi (Animal Shogi) application where you can play against a rule-based AI or enjoy an online two-player game. Features a clean, responsive interface for both mobile and desktop play.",
   "requestFramePermissions": []
 }
