@@ -1,17 +1,1 @@
-{
-  "name": "dobutsu-shogi-ai",
-  "version": "1.0.0",
-  "description": "A web-based Dobutsu Shogi (Animal Shogi) application",
-  "main": "server.js",
-  "type": "module",
-  "scripts": {
-    "start": "node server.js"
-  },
-  "dependencies": {
-    "express": "^4.19.2",
-    "immer": "^10.1.1",
-    "socket.io": "^4.7.5"
-  },
-  "author": "",
-  "license": "ISC"
-}
+full contents of package.json

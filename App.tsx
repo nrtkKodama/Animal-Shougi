@@ -1,24 +1,21 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import io, { Socket } from 'socket.io-client';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import MainMenu from './components/MainMenu';
 import GameUI from './components/GameUI';
 import OnlineLobby from './components/OnlineLobby';
 import { useGameLogic } from './hooks/useGameLogic';
 import { getSimpleAiMove } from './services/simpleAiService';
-import { GameMode, View, Player, Action, GameState } from './types';
+// import { getGeminiAiMove } from './services/geminiService'; // Can be swapped in
+import { GameMode, View, Player, Action } from './types';
 
 function App() {
     const [view, setView] = useState<View>('menu');
     const [gameMode, setGameMode] = useState<GameMode | null>(null);
     const [player, setPlayer] = useState<Player>(Player.SENTE);
     const [isAITurn, setIsAITurn] = useState<boolean>(false);
-    const [onlineRoomCode, setOnlineRoomCode] = useState<string>('');
-    const [onlineGameState, setOnlineGameState] = useState<GameState | null>(null);
-
-    const socketRef = useRef<Socket | null>(null);
 
     const {
-        gameState: localGameState,
+        gameState,
         selectedPosition,
         selectedCapturedPiece,
         validMoves,
@@ -26,13 +23,13 @@ function App() {
         handleCapturedPieceClick,
         applyAction,
         resetGame,
-        setGameState: setLocalGameState,
     } = useGameLogic();
-    
+
     const handleSelectMode = (mode: GameMode) => {
         setGameMode(mode);
         if (mode === GameMode.SINGLE_PLAYER) {
             resetGame();
+            // Randomly choose if player is Sente or Gote
             const humanPlayer = Math.random() < 0.5 ? Player.SENTE : Player.GOTE;
             setPlayer(humanPlayer);
             setView('game');
@@ -41,95 +38,53 @@ function App() {
         }
     };
 
-    const handleBackToMenu = useCallback(() => {
-        if (socketRef.current) {
-            socketRef.current.disconnect();
-            socketRef.current = null;
-        }
+    const handleBackToMenu = () => {
         setView('menu');
         setGameMode(null);
-        setOnlineGameState(null);
-        setOnlineRoomCode('');
-    }, []);
-
-    const handleGameStart = (initialState: GameState, players: {[socketId: string]: Player}) => {
-        const myPlayer = players[socketRef.current.id];
-        setPlayer(myPlayer);
-        setOnlineGameState(initialState);
-        setView('game');
-    };
-    
-    const handleJoinRoom = (roomCode: string) => {
-        setOnlineRoomCode(roomCode);
-        const socket = io();
-        socketRef.current = socket;
-
-        socket.on('game_start', ({gameState, players}) => {
-            handleGameStart(gameState, players);
-        });
-        
-        socket.on('game_state_update', (newGameState: GameState) => {
-            setOnlineGameState(newGameState);
-        });
-
-        socket.on('opponent_disconnected', () => {
-             // We'll let the GameUI handle this message
-        });
-        
-        socket.emit('join_room', roomCode);
-    };
-    
-    const handleOnlineMove = (action: Action) => {
-        if (socketRef.current) {
-            socketRef.current.emit('make_move', { roomCode: onlineRoomCode, action });
-        }
     };
 
     const handleNewGame = () => {
         resetGame();
-        const humanPlayer = Math.random() < 0.5 ? Player.SENTE : Player.GOTE;
-        setPlayer(humanPlayer);
+         const humanPlayer = Math.random() < 0.5 ? Player.SENTE : Player.GOTE;
+         setPlayer(humanPlayer);
     };
 
     const runAiMove = useCallback(async () => {
         setIsAITurn(true);
         try {
-            const aiMove: Action = await getSimpleAiMove(localGameState);
+            // To use the Gemini AI, uncomment the line below and the corresponding import.
+            // const aiMove: Action = await getGeminiAiMove(gameState);
+            const aiMove: Action = await getSimpleAiMove(gameState);
             applyAction(aiMove);
         } catch (error) {
             console.error("AI failed to make a move:", error);
+            // Handle AI error, e.g. show a message to the user
         } finally {
             setIsAITurn(false);
         }
-    }, [localGameState, applyAction]);
+    }, [gameState, applyAction]);
 
     useEffect(() => {
         const isSinglePlayer = gameMode === GameMode.SINGLE_PLAYER;
         const aiPlayer = player === Player.SENTE ? Player.GOTE : Player.SENTE;
         
-        if (isSinglePlayer && localGameState.currentPlayer === aiPlayer && !localGameState.winner && !isAITurn) {
+        if (isSinglePlayer && gameState.currentPlayer === aiPlayer && !gameState.winner && !isAITurn) {
             runAiMove();
         }
-    }, [gameMode, player, localGameState, isAITurn, runAiMove]);
+    }, [gameMode, player, gameState, isAITurn, runAiMove]);
 
-    // This effect synchronizes the local game logic with the server's state for online games
-    useEffect(() => {
-        if(gameMode === GameMode.ONLINE && onlineGameState) {
-            setLocalGameState(onlineGameState);
-        }
-    }, [gameMode, onlineGameState, setLocalGameState]);
 
     const renderContent = () => {
         switch (view) {
             case 'menu':
                 return <MainMenu onSelectMode={handleSelectMode} />;
             case 'online-lobby':
-                return <OnlineLobby onBackToMenu={handleBackToMenu} onJoinRoom={handleJoinRoom} />;
+                return <OnlineLobby onBackToMenu={handleBackToMenu} />;
             case 'game':
                 if (!gameMode) return <MainMenu onSelectMode={handleSelectMode} />;
                 return (
                     <GameUI
-                        gameState={localGameState}
+                        gameState={gameState}
                         pov={player}
                         isAITurn={isAITurn}
                         selectedPosition={selectedPosition}
@@ -140,8 +95,6 @@ function App() {
                         onNewGame={handleNewGame}
                         onBackToMenu={handleBackToMenu}
                         isOnline={gameMode === GameMode.ONLINE}
-                        onOnlineMove={handleOnlineMove}
-                        socket={socketRef.current}
                     />
                 );
             default:
