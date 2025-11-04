@@ -69,8 +69,7 @@ export const createInitialState = (firstPlayer = Player.SENTE) => ({
     turn: 1,
     isCheck: false,
     isCheckmate: false,
-    lastMove: null,
-    winner: null,
+    // winner and lastMove are intentionally omitted to be `undefined` by default, matching the client's type.
 });
 
 
@@ -279,7 +278,7 @@ export const applyAction = (state, action) => {
             newState.board[to.row][to.col].type = PieceType.HEN;
         }
 
-        newState.lastMove = { type: 'move', from, to };
+        newState.lastMove = { from, to }; // Synced with client's Move type
     }
     // ---------------------
     // DROP
