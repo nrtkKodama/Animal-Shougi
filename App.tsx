@@ -76,6 +76,7 @@ function App() {
         }
         setGameState(initialState);
         setPlayer(assignedPlayer);
+        setGameOverMessage(null); // Clear game over message on new game start
         setView('game');
     }, [socket, setGameState, handleBackToMenu]);
 
@@ -86,6 +87,12 @@ function App() {
             applyAction(action);
         }
     }, [socket, applyAction]);
+
+    const handleRematch = useCallback(() => {
+        if (socket) {
+            socket.emit('rematch_request');
+        }
+    }, [socket]);
 
     const runAiMove = useCallback(async () => {
         setIsAITurn(true);
@@ -159,6 +166,7 @@ function App() {
                         socket={socket}
                         setGameState={setGameState}
                         gameOverMessage={gameOverMessage}
+                        onRematch={handleRematch}
                     />
                 );
             default:

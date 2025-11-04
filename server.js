@@ -1,5 +1,3 @@
-
-
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
@@ -29,7 +27,7 @@ io.on('connection', (socket) => {
         // Find or create room
         let room = rooms.get(roomCode);
         if (!room) {
-            room = { players: [], gameState: null };
+            room = { players: [], gameState: null, rematchRequested: new Set() };
             rooms.set(roomCode, room);
         }
 
@@ -90,6 +88,35 @@ io.on('connection', (socket) => {
             io.in(currentRoomCode).emit('game_state_update', nextState);
         } catch (error) {
             console.error(`Error applying move in room ${currentRoomCode}:`, error);
+        }
+    });
+
+    socket.on('rematch_request', () => {
+        const room = rooms.get(currentRoomCode);
+        if (!room || !room.gameState || room.gameState.winner === undefined) return;
+
+        room.rematchRequested.add(socket.id);
+        socket.broadcast.to(currentRoomCode).emit('opponent_wants_rematch');
+        console.log(`Rematch requested by ${socket.id} in room ${currentRoomCode}`);
+
+        if (room.rematchRequested.size === 2) {
+            console.log(`Rematch accepted in room ${currentRoomCode}. Starting new game.`);
+            // Swap roles
+            room.players.forEach(p => {
+                p.role = 1 - p.role;
+            });
+
+            // Reset game state
+            room.gameState = createInitialState();
+            room.rematchRequested.clear();
+
+            // Send new game state to both players
+            room.players.forEach(player => {
+                io.to(player.id).emit('game_start', {
+                    gameState: room.gameState,
+                    player: player.role
+                });
+            });
         }
     });
 

@@ -8,17 +8,28 @@ interface GameOverModalProps {
     onBackToMenu: () => void;
     isOnline: boolean;
     customMessage?: string | null;
+    onRematch?: () => void;
+    rematchStatus?: string | null;
 }
 
-const GameOverModal: React.FC<GameOverModalProps> = ({ winner, getPlayerName, onNewGame, onBackToMenu, isOnline, customMessage }) => {
+const GameOverModal: React.FC<GameOverModalProps> = ({ winner, getPlayerName, onNewGame, onBackToMenu, isOnline, customMessage, onRematch, rematchStatus }) => {
     const winnerName = winner !== undefined ? getPlayerName(winner) : '';
     const message = customMessage || <><span className="font-bold text-yellow-300">{winnerName}</span> wins!</>;
 
     return (
         <div className="absolute inset-0 bg-black bg-opacity-60 flex flex-col items-center justify-center rounded-lg z-20 text-white p-4">
             <h2 className="text-4xl font-bold mb-2">Game Over</h2>
-            <p className="text-2xl mb-6 text-center">{message}</p>
+            <p className="text-2xl mb-4 text-center">{message}</p>
+            {rematchStatus && <p className="text-lg mb-4 text-blue-300 animate-pulse">{rematchStatus}</p>}
             <div className="flex flex-col space-y-3 w-full max-w-xs">
+                {isOnline && (
+                    <button 
+                        onClick={onRematch}
+                        className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition-transform transform hover:scale-105"
+                    >
+                        Rematch
+                    </button>
+                )}
                 {!isOnline && (
                     <button 
                         onClick={onNewGame}

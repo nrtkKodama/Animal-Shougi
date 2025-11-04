@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Socket } from 'socket.io-client';
 import { GameState, Player, PieceType, Position, GameMode } from '../types';
 import Board from './Board';
@@ -22,6 +22,7 @@ interface GameUIProps {
     socket: Socket | null;
     setGameState: (gameState: GameState) => void;
     gameOverMessage?: string | null;
+    onRematch: () => void;
 }
 
 const GameUI: React.FC<GameUIProps> = ({
@@ -39,20 +40,37 @@ const GameUI: React.FC<GameUIProps> = ({
     gameMode,
     socket,
     setGameState,
-    gameOverMessage
+    gameOverMessage,
+    onRematch,
 }) => {
+    const [rematchStatus, setRematchStatus] = useState<string | null>(null);
 
     useEffect(() => {
         if (isOnline && socket) {
-            socket.on('game_state_update', (newGameState: GameState) => {
+            const gameStateUpdateHandler = (newGameState: GameState) => {
                 setGameState(newGameState);
-            });
+            };
+            const opponentWantsRematchHandler = () => {
+                setRematchStatus('Opponent wants a rematch!');
+            };
+
+            socket.on('game_state_update', gameStateUpdateHandler);
+            socket.on('opponent_wants_rematch', opponentWantsRematchHandler);
 
             return () => {
-                socket.off('game_state_update');
-            }
+                socket.off('game_state_update', gameStateUpdateHandler);
+                socket.off('opponent_wants_rematch', opponentWantsRematchHandler);
+            };
         }
     }, [isOnline, socket, setGameState]);
+    
+    useEffect(() => {
+        // Game is reset (turn 1, no winner), clear rematch status
+        if (gameState.turn === 1 && gameState.winner === undefined) {
+            setRematchStatus(null);
+        }
+    }, [gameState.turn, gameState.winner]);
+
 
     const { board, captured, currentPlayer, winner, lastMove, isCheck } = gameState;
     const opponent = pov === Player.SENTE ? Player.GOTE : Player.SENTE;
@@ -110,7 +128,7 @@ const GameUI: React.FC<GameUIProps> = ({
     return (
         <div className="flex flex-col items-center p-2 md:p-4 bg-stone-100 rounded-lg w-full max-w-lg mx-auto relative">
             {isAITurn && <Spinner />}
-            {(winner !== undefined || gameOverMessage) && <GameOverModal winner={winner} getPlayerName={getPlayerName} onNewGame={onNewGame} onBackToMenu={onBackToMenu} isOnline={isOnline} customMessage={gameOverMessage} />}
+            {(winner !== undefined || gameOverMessage) && <GameOverModal winner={winner} getPlayerName={getPlayerName} onNewGame={onNewGame} onBackToMenu={onBackToMenu} isOnline={isOnline} customMessage={gameOverMessage} onRematch={onRematch} rematchStatus={rematchStatus} />}
             
             <div className="w-full flex flex-col items-center mb-2">
                 <span className="font-semibold text-stone-700">{getPlayerName(opponent)}</span>
