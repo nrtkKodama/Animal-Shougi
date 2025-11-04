@@ -23,12 +23,13 @@ const getValidMovesForPiece = (pos: Position, board: Board): Position[] => {
 
     const moves: Position[] = [];
     const moveSet = PIECE_MOVES[piece.type];
-    // Correctly determine direction based on player
+    
     const dyDirection = piece.player === Player.SENTE ? 1 : -1;
+    const dxDirection = piece.player === Player.SENTE ? 1 : -1;
 
     for (const [dy, dx] of moveSet) {
         const newRow = pos.row + (dy * dyDirection);
-        const newCol = pos.col + dx;
+        const newCol = pos.col + (dx * dxDirection);
 
         if (newRow >= 0 && newRow < BOARD_ROWS && newCol >= 0 && newCol < BOARD_COLS) {
             const destinationPiece = board[newRow][newCol];
@@ -62,6 +63,28 @@ const isKingInCheck = (board: Board, player: Player): boolean => {
     const opponent = player === Player.SENTE ? Player.GOTE : Player.SENTE;
     return isSquareAttackedBy(board, lionPos, opponent);
 };
+
+// This is a simplified version for the AI. A full implementation would be needed for perfect rule adherence.
+const hasLegalMoves = (board: Board, player: Player): boolean => {
+     for (let r = 0; r < BOARD_ROWS; r++) {
+        for (let c = 0; c < BOARD_COLS; c++) {
+            const piece = board[r][c];
+            if (piece && piece.player === player) {
+                const moves = getValidMovesForPiece({ row: r, col: c }, board);
+                for (const move of moves) {
+                    const nextBoard = produce(board, draft => {
+                        draft[move.row][move.col] = piece;
+                        draft[r][c] = null;
+                    });
+                    if (!isKingInCheck(nextBoard, player)) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false; // Simplified: doesn't check drops for AI's hasLegalMoves check
+}
 
 
 /**
@@ -102,6 +125,15 @@ const getAllLegalMoves = (gameState: GameState): Action[] => {
 
         for (const pieceType of capturedPieces) {
             for (const pos of emptySquares) {
+                 if (pieceType === PieceType.CHICK) {
+                    const nextBoard = produce(board, draft => {
+                        draft[pos.row][pos.col] = { type: PieceType.CHICK, player: player };
+                    });
+                    const opponent = player === Player.SENTE ? Player.GOTE : Player.SENTE;
+                    if (isKingInCheck(nextBoard, opponent) && !hasLegalMoves(nextBoard, opponent)) {
+                        continue; // Illegal move, so skip this square
+                    }
+                }
                 const action: Action = { pieceType, to: pos };
                 legalMoves.push(action);
             }

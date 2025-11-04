@@ -33,18 +33,20 @@ export const useGameLogic = () => {
         return null;
     }, []);
 
-    const getValidMovesForPiece = (pos: Position, board: Board): Position[] => {
+    const getValidMovesForPiece = useCallback((pos: Position, board: Board): Position[] => {
         const piece = board[pos.row][pos.col];
         if (!piece) return [];
 
         const moves: Position[] = [];
         const moveSet = PIECE_MOVES[piece.type];
-        // Correctly determine direction based on player
+        
+        // Player's perspective is rotated 180deg for GOTE
         const dyDirection = piece.player === Player.SENTE ? 1 : -1;
+        const dxDirection = piece.player === Player.SENTE ? 1 : -1;
 
         for (const [dy, dx] of moveSet) {
             const newRow = pos.row + (dy * dyDirection);
-            const newCol = pos.col + dx;
+            const newCol = pos.col + (dx * dxDirection);
 
             if (newRow >= 0 && newRow < BOARD_ROWS && newCol >= 0 && newCol < BOARD_COLS) {
                 const destinationPiece = board[newRow][newCol];
@@ -54,7 +56,7 @@ export const useGameLogic = () => {
             }
         }
         return moves;
-    };
+    }, []);
 
     const isSquareAttackedBy = useCallback((board: Board, pos: Position, attacker: Player): boolean => {
         for (let r = 0; r < BOARD_ROWS; r++) {
@@ -69,7 +71,7 @@ export const useGameLogic = () => {
             }
         }
         return false;
-    }, []);
+    }, [getValidMovesForPiece]);
     
     const isKingInCheck = useCallback((board: Board, player: Player): boolean => {
         const lionPos = findLion(board, player);
@@ -109,6 +111,13 @@ export const useGameLogic = () => {
                                  draft[r][c] = { type: pieceType, player };
                              });
                              if (!isKingInCheck(nextBoard, player)) {
+                                 // Check for illegal chick drop checkmate
+                                 if (pieceType === PieceType.CHICK) {
+                                     const opponent = player === Player.SENTE ? Player.GOTE : Player.SENTE;
+                                     if (isKingInCheck(nextBoard, opponent) && !hasLegalMoves(nextBoard, opponent, [])) {
+                                         continue; // This drop is illegal
+                                     }
+                                 }
                                  return true;
                              }
                          }
@@ -117,7 +126,7 @@ export const useGameLogic = () => {
             }
         }
         return false;
-    }, [isKingInCheck]);
+    }, [isKingInCheck, getValidMovesForPiece]);
 
 
     const applyMove = useCallback((action: Action) => {
@@ -207,7 +216,18 @@ export const useGameLogic = () => {
             for (let r = 0; r < BOARD_ROWS; r++) {
                 for (let c = 0; c < BOARD_COLS; c++) {
                     if (gameState.board[r][c] === null) {
-                         // Add check for illegal chick drop if it leads to immediate checkmate (advanced rule)
+                        // Check for illegal chick drop (immediate checkmate)
+                         if (selectedCapturedPiece === PieceType.CHICK) {
+                            const nextBoard = produce(gameState.board, draft => {
+                                draft[r][c] = { type: PieceType.CHICK, player: gameState.currentPlayer };
+                            });
+                            const opponent = gameState.currentPlayer === Player.SENTE ? Player.GOTE : Player.SENTE;
+                            const opponentCaptured = gameState.captured[opponent];
+
+                            if (isKingInCheck(nextBoard, opponent) && !hasLegalMoves(nextBoard, opponent, opponentCaptured)) {
+                                continue; // Illegal move, so skip this square
+                            }
+                        }
                         dropPositions.push({ row: r, col: c });
                     }
                 }
@@ -215,11 +235,11 @@ export const useGameLogic = () => {
             return dropPositions;
         }
         return [];
-    }, [selectedPosition, selectedCapturedPiece, gameState.board, gameState.currentPlayer, isKingInCheck]);
+    }, [selectedPosition, selectedCapturedPiece, gameState, isKingInCheck, hasLegalMoves, getValidMovesForPiece]);
     
 
     const handleSquareClick = (row: number, col: number, onAction: (action: Action) => void) => {
-        if (gameState.winner) return;
+        if (gameState.winner !== undefined) return;
         const clickedPiece = gameState.board[row][col];
         
         if (selectedPosition) {
@@ -246,7 +266,7 @@ export const useGameLogic = () => {
     };
     
     const handleCapturedPieceClick = (pieceType: PieceType) => {
-        if (gameState.winner) return;
+        if (gameState.winner !== undefined) return;
         
         if(selectedCapturedPiece === pieceType){
             setSelectedCapturedPiece(null);

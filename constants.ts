@@ -1,4 +1,3 @@
-
 import { PieceType, Player, Board } from './types';
 
 export const BOARD_ROWS = 4;
@@ -11,8 +10,10 @@ export const INITIAL_BOARD: Board = [
     [{ type: PieceType.ELEPHANT, player: Player.SENTE }, { type: PieceType.LION, player: Player.SENTE }, { type: PieceType.GIRAFFE, player: Player.SENTE }],
 ];
 
-// Moves are defined as [dy, dx] from the piece's perspective.
-// For GOTE, dy is flipped.
+// Moves are defined as [dy, dx] from the piece's perspective on an un-rotated board.
+// Sente (player 0) moves towards decreasing row index ("up").
+// Gote (player 1) has its moves programmatically inverted.
+// "Forward" from the piece's perspective is always -1 dy.
 export const PIECE_MOVES: Record<PieceType, [number, number][]> = {
     [PieceType.LION]: [
         [-1, -1], [-1, 0], [-1, 1],
@@ -26,11 +27,11 @@ export const PIECE_MOVES: Record<PieceType, [number, number][]> = {
         [-1, -1], [-1, 1], [1, -1], [1, 1]
     ],
     [PieceType.CHICK]: [
-        [-1, 0]
+        [-1, 0] // Forward
     ],
     [PieceType.HEN]: [
-        [-1, -1], [-1, 0], [-1, 1],
-        [0, -1],           [0, 1],
-        [1, 0]
+        [-1, -1], [-1, 0], [-1, 1], // Forward and forward-diagonal
+        [0, -1],           [0, 1], // Sideways
+        [1, 0]                     // Backward
     ],
 };
