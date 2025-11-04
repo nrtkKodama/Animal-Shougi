@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Socket } from 'socket.io-client';
 import { GameState, Player, PieceType, Position } from '../types';
 import Board from './Board';
@@ -39,27 +39,18 @@ const GameUI: React.FC<GameUIProps> = ({
     setGameState,
     gameOverMessage
 }) => {
-    const [onlineStatus, setOnlineStatus] = useState('');
 
     useEffect(() => {
         if (isOnline && socket) {
             socket.on('game_state_update', (newGameState: GameState) => {
                 setGameState(newGameState);
-                setOnlineStatus('');
-            });
-            socket.on('opponent_disconnected', () => {
-                setOnlineStatus('Opponent disconnected. You win!');
-                setTimeout(() => {
-                    onBackToMenu();
-                }, 3000);
             });
 
             return () => {
                 socket.off('game_state_update');
-                socket.off('opponent_disconnected');
             }
         }
-    }, [isOnline, socket, setGameState, onBackToMenu]);
+    }, [isOnline, socket, setGameState]);
 
     const { board, captured, currentPlayer, winner, lastMove, isCheck } = gameState;
     const opponent = pov === Player.SENTE ? Player.GOTE : Player.SENTE;
@@ -74,8 +65,6 @@ const GameUI: React.FC<GameUIProps> = ({
     let statusText: string;
     if (gameOverMessage) {
         statusText = gameOverMessage;
-    } else if (onlineStatus) {
-        statusText = onlineStatus;
     } else if (winner !== undefined) {
         statusText = `${getPlayerName(winner)} wins!`;
     } else if (isOnline && currentPlayer !== pov) {
@@ -88,7 +77,7 @@ const GameUI: React.FC<GameUIProps> = ({
     const opponentPieces = pov === Player.SENTE ? captured[Player.GOTE] : captured[Player.SENTE];
     
     const playerIsCurrent = currentPlayer === pov;
-    const isPlayerTurn = isOnline ? playerIsCurrent && !onlineStatus : !isAITurn;
+    const isPlayerTurn = isOnline ? playerIsCurrent && !gameOverMessage : !isAITurn;
 
     return (
         <div className="flex flex-col items-center p-2 md:p-4 bg-stone-100 rounded-lg w-full max-w-lg mx-auto relative">

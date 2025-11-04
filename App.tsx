@@ -102,6 +102,19 @@ function App() {
         }
     }, [gameMode, player, gameState, isAITurn, runAiMove]);
 
+    useEffect(() => {
+        if (socket) {
+            const opponentDisconnectedHandler = () => {
+                setGameOverMessage('Opponent disconnected. You win!');
+            };
+            socket.on('opponent_disconnected', opponentDisconnectedHandler);
+
+            return () => {
+                socket.off('opponent_disconnected', opponentDisconnectedHandler);
+            };
+        }
+    }, [socket]);
+
 
     const renderContent = () => {
         switch (view) {

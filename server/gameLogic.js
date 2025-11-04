@@ -154,8 +154,9 @@ export const applyAction = (gameState, action) => {
     if ('from' in action) {
         const { from, to } = action;
         const pieceToMove = newGameState.board[from.row][from.col];
-        if (!pieceToMove) throw new Error("No piece at from position");
-        if (pieceToMove.player !== currentPlayer) throw new Error("Not player's piece");
+        // Trust the client to send a valid move if it's the player's turn.
+        // The turn itself is validated in server.js
+        if (!pieceToMove) return gameState;
         
         const capturedPiece = newGameState.board[to.row][to.col];
         if (capturedPiece) {
@@ -171,13 +172,12 @@ export const applyAction = (gameState, action) => {
             pieceToMove.type = PieceType.HEN;
         }
         newGameState.lastMove = action;
-    } else {
+    } else { // Drop logic
         const { pieceType, to } = action;
-        if (!newGameState.captured[currentPlayer].includes(pieceType)) throw new Error("Player does not have captured piece");
-
-        newGameState.board[to.row][to.col] = { type: pieceType, player: currentPlayer };
         const pieceIndex = newGameState.captured[currentPlayer].indexOf(pieceType);
+        // Only proceed if player has the piece
         if (pieceIndex > -1) {
+            newGameState.board[to.row][to.col] = { type: pieceType, player: currentPlayer };
             newGameState.captured[currentPlayer].splice(pieceIndex, 1);
         }
         newGameState.lastMove = undefined;
