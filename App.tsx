@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import MainMenu from './components/MainMenu';
 import GameUI from './components/GameUI';
 import OnlineLobby from './components/OnlineLobby';
-import { useGameLogic, getAllLegalActions } from './hooks/useGameLogic';
+import { useGameLogic } from './hooks/useGameLogic';
 import { getSimpleAiMove } from './services/simpleAiService';
 // import { getGeminiAiMove } from './services/geminiService'; // Can be swapped in
 import { GameMode, View, Player, Action } from './types';
@@ -12,7 +13,6 @@ function App() {
     const [gameMode, setGameMode] = useState<GameMode | null>(null);
     const [player, setPlayer] = useState<Player>(Player.SENTE);
     const [isAITurn, setIsAITurn] = useState<boolean>(false);
-    const [gameOverMessage, setGameOverMessage] = useState<string | null>(null);
 
     const {
         gameState,
@@ -23,14 +23,12 @@ function App() {
         handleCapturedPieceClick,
         applyAction,
         resetGame,
-        forceWinner,
     } = useGameLogic();
 
     const handleSelectMode = (mode: GameMode) => {
         setGameMode(mode);
         if (mode === GameMode.SINGLE_PLAYER) {
             resetGame();
-            setGameOverMessage(null);
             // Randomly choose if player is Sente or Gote
             const humanPlayer = Math.random() < 0.5 ? Player.SENTE : Player.GOTE;
             setPlayer(humanPlayer);
@@ -43,42 +41,28 @@ function App() {
     const handleBackToMenu = () => {
         setView('menu');
         setGameMode(null);
-        setGameOverMessage(null);
     };
 
     const handleNewGame = () => {
         resetGame();
-        setGameOverMessage(null);
          const humanPlayer = Math.random() < 0.5 ? Player.SENTE : Player.GOTE;
          setPlayer(humanPlayer);
     };
 
     const runAiMove = useCallback(async () => {
         setIsAITurn(true);
-        const legalActions = getAllLegalActions(gameState);
-
-        if (legalActions.length === 0) {
-            // This case should not be reached if win condition is checked properly.
-            // It means AI is checkmated. The game is already over.
-            console.warn("AI's turn, but no legal moves found. This should have been a checkmate.");
-            setIsAITurn(false);
-            return;
-        }
-
         try {
             // To use the Gemini AI, uncomment the line below and the corresponding import.
             // const aiMove: Action = await getGeminiAiMove(gameState);
-            const aiMove: Action = await getSimpleAiMove(gameState, legalActions);
+            const aiMove: Action = await getSimpleAiMove(gameState);
             applyAction(aiMove);
         } catch (error) {
-            console.error("AI service failed to provide a move:", error);
-            // This handles true errors, not just "no moves".
-            forceWinner(player);
-            setGameOverMessage("AIにエラーが発生しました。プレイヤーの勝利です。");
+            console.error("AI failed to make a move:", error);
+            // Handle AI error, e.g. show a message to the user
         } finally {
             setIsAITurn(false);
         }
-    }, [gameState, applyAction, forceWinner, player]);
+    }, [gameState, applyAction]);
 
     useEffect(() => {
         const isSinglePlayer = gameMode === GameMode.SINGLE_PLAYER;
@@ -111,7 +95,6 @@ function App() {
                         onNewGame={handleNewGame}
                         onBackToMenu={handleBackToMenu}
                         isOnline={gameMode === GameMode.ONLINE}
-                        gameOverMessage={gameOverMessage}
                     />
                 );
             default:

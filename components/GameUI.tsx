@@ -18,7 +18,6 @@ interface GameUIProps {
     onNewGame: () => void;
     onBackToMenu: () => void;
     isOnline: boolean;
-    gameOverMessage: string | null;
 }
 
 const GameUI: React.FC<GameUIProps> = ({
@@ -33,7 +32,6 @@ const GameUI: React.FC<GameUIProps> = ({
     onNewGame,
     onBackToMenu,
     isOnline,
-    gameOverMessage,
 }) => {
     const { board, captured, currentPlayer, winner, lastMove, isCheck } = gameState;
     const opponent = pov === Player.SENTE ? Player.GOTE : Player.SENTE;
@@ -57,7 +55,7 @@ const GameUI: React.FC<GameUIProps> = ({
     return (
         <div className="flex flex-col items-center p-2 md:p-4 bg-stone-100 rounded-lg w-full max-w-lg mx-auto relative">
             {isAITurn && <Spinner />}
-            {winner !== undefined && <GameOverModal winner={winner} getPlayerName={getPlayerName} onNewGame={onNewGame} onBackToMenu={onBackToMenu} isOnline={isOnline} gameOverMessage={gameOverMessage} />}
+            {winner !== undefined && <GameOverModal winner={winner} getPlayerName={getPlayerName} onNewGame={onNewGame} onBackToMenu={onBackToMenu} isOnline={isOnline} />}
             
             {/* Opponent's Info */}
             <div className="w-full flex flex-col items-center mb-2">

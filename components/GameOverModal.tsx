@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Player } from '../types';
 
@@ -8,17 +7,14 @@ interface GameOverModalProps {
     onNewGame: () => void;
     onBackToMenu: () => void;
     isOnline: boolean;
-    gameOverMessage: string | null;
 }
 
-const GameOverModal: React.FC<GameOverModalProps> = ({ winner, getPlayerName, onNewGame, onBackToMenu, isOnline, gameOverMessage }) => {
+const GameOverModal: React.FC<GameOverModalProps> = ({ winner, getPlayerName, onNewGame, onBackToMenu, isOnline }) => {
     const winnerName = getPlayerName(winner);
-    const message = gameOverMessage || <><span className="font-bold text-yellow-300">{winnerName}</span> wins!</>;
-    
     return (
-        <div className="absolute inset-0 bg-black bg-opacity-60 flex flex-col items-center justify-center rounded-lg z-20 text-white p-4 text-center">
+        <div className="absolute inset-0 bg-black bg-opacity-60 flex flex-col items-center justify-center rounded-lg z-20 text-white p-4">
             <h2 className="text-4xl font-bold mb-2">Game Over</h2>
-            <p className="text-2xl mb-6">{message}</p>
+            <p className="text-2xl mb-6"><span className="font-bold text-yellow-300">{winnerName}</span> wins!</p>
             <div className="flex flex-col space-y-3 w-full max-w-xs">
                 {!isOnline && (
                     <button 
