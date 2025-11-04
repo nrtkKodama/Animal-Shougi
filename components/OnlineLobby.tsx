@@ -5,10 +5,9 @@ import { GameState, Player } from '../types';
 interface OnlineLobbyProps {
     socket: Socket | null;
     onBackToMenu: () => void;
-    onGameStart: (initialState: GameState, player: Player) => void;
 }
 
-const OnlineLobby: React.FC<OnlineLobbyProps> = ({ socket, onBackToMenu, onGameStart }) => {
+const OnlineLobby: React.FC<OnlineLobbyProps> = ({ socket, onBackToMenu }) => {
     const [roomCode, setRoomCode] = useState('');
     const [status, setStatus] = useState('');
 
@@ -19,9 +18,6 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ socket, onBackToMenu, onGameS
         }
         setStatus(''); // Clear status when socket is ready
 
-        const gameStartHandler = ({ gameState, player }: { gameState: GameState, player: Player }) => {
-            onGameStart(gameState, player);
-        };
         const waitingHandler = () => {
             setStatus('Waiting for opponent...');
         };
@@ -32,18 +28,16 @@ const OnlineLobby: React.FC<OnlineLobbyProps> = ({ socket, onBackToMenu, onGameS
             setStatus('Could not connect to the server.');
         };
 
-        socket.on('game_start', gameStartHandler);
         socket.on('waiting_for_opponent', waitingHandler);
         socket.on('room_full', roomFullHandler);
         socket.on('connect_error', connectErrorHandler);
 
         return () => {
-            socket.off('game_start', gameStartHandler);
             socket.off('waiting_for_opponent', waitingHandler);
             socket.off('room_full', roomFullHandler);
             socket.off('connect_error', connectErrorHandler);
         };
-    }, [socket, onGameStart]);
+    }, [socket]);
 
     const handleJoin = () => {
         if (roomCode.trim() && socket) {

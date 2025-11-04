@@ -132,13 +132,20 @@ function App() {
                     handleBackToMenu();
                 }, 3000);
             };
+
+            const gameStartHandler = ({ gameState, player }: { gameState: GameState, player: Player }) => {
+                handleGameStart(gameState, player);
+            };
+
+            socket.on('game_start', gameStartHandler);
             socket.on('opponent_disconnected', opponentDisconnectedHandler);
 
             return () => {
+                socket.off('game_start', gameStartHandler);
                 socket.off('opponent_disconnected', opponentDisconnectedHandler);
             };
         }
-    }, [socket, handleBackToMenu]);
+    }, [socket, handleBackToMenu, handleGameStart]);
 
 
     const renderContent = () => {
@@ -146,7 +153,7 @@ function App() {
             case 'menu':
                 return <MainMenu onSelectMode={handleSelectMode} />;
             case 'online-lobby':
-                return <OnlineLobby socket={socket} onBackToMenu={handleBackToMenu} onGameStart={handleGameStart} />;
+                return <OnlineLobby socket={socket} onBackToMenu={handleBackToMenu} />;
             case 'game':
                 if (!gameMode) return <MainMenu onSelectMode={handleSelectMode} />;
                 return (
