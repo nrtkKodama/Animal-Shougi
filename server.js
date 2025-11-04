@@ -13,6 +13,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 // Serve static files from the root directory, including .tsx files
+// This middleware must come before the SPA fallback route.
 app.use(express.static(__dirname, {
     setHeaders: (res, filePath) => {
         if (filePath.endsWith('.tsx') || filePath.endsWith('.ts')) {
@@ -20,19 +21,6 @@ app.use(express.static(__dirname, {
         }
     }
 }));
-
-// Serve index.html for any path that is not a file, to support client-side routing
-app.get('*', (req, res) => {
-    // Check if the request is for a file with an extension
-    if (path.extname(req.path).length > 0) {
-        // If it is a file, the static middleware will handle it. If not found, it will 404.
-        res.status(404).end();
-    } else {
-        // If it's a path without an extension, serve index.html
-        res.sendFile(path.join(__dirname, 'index.html'));
-    }
-});
-
 
 // In-memory store for rooms
 const rooms = new Map();
@@ -108,6 +96,13 @@ io.on('connection', (socket) => {
         }
     });
 });
+
+// Serve index.html for any GET request that doesn't match a static file
+// This should be the last route handler.
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
