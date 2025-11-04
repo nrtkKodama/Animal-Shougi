@@ -1,176 +1,31 @@
-import { GameState, Player, Position, PieceType, Board, Action } from '../types';
-import { produce } from 'immer';
-import { BOARD_ROWS, BOARD_COLS, PIECE_MOVES } from '../constants';
+import { GameState, Action, Move } from '../types';
 
-// Helper functions duplicated from useGameLogic to avoid complex dependencies.
-// In a larger app, these might be moved to a shared utility file.
-
-const findLion = (board: Board, player: Player): Position | null => {
-    for (let r = 0; r < BOARD_ROWS; r++) {
-        for (let c = 0; c < BOARD_COLS; c++) {
-            const piece = board[r][c];
-            if (piece && piece.type === PieceType.LION && piece.player === player) {
-                return { row: r, col: c };
+export const getSimpleAiMove = async (gameState: GameState, legalActions: Action[]): Promise<Action> => {
+    return new Promise((resolve, reject) => {
+        setTimeout(() => {
+            if (legalActions.length === 0) {
+                return reject(new Error("AI was asked to move but has no legal actions."));
             }
-        }
-    }
-    return null;
-};
 
-const getValidMovesForPiece = (pos: Position, board: Board): Position[] => {
-    const piece = board[pos.row][pos.col];
-    if (!piece) return [];
-
-    const moves: Position[] = [];
-    const moveSet = PIECE_MOVES[piece.type];
-    
-    const dyDirection = piece.player === Player.SENTE ? 1 : -1;
-    const dxDirection = piece.player === Player.SENTE ? 1 : -1;
-
-    for (const [dy, dx] of moveSet) {
-        const newRow = pos.row + (dy * dyDirection);
-        const newCol = pos.col + (dx * dxDirection);
-
-        if (newRow >= 0 && newRow < BOARD_ROWS && newCol >= 0 && newCol < BOARD_COLS) {
-            const destinationPiece = board[newRow][newCol];
-            if (!destinationPiece || destinationPiece.player !== piece.player) {
-                moves.push({ row: newRow, col: newCol });
-            }
-        }
-    }
-    return moves;
-};
-
-
-const isSquareAttackedBy = (board: Board, pos: Position, attacker: Player): boolean => {
-    for (let r = 0; r < BOARD_ROWS; r++) {
-        for (let c = 0; c < BOARD_COLS; c++) {
-            const piece = board[r][c];
-            if (piece && piece.player === attacker) {
-                const moves = getValidMovesForPiece({ row: r, col: c }, board);
-                if (moves.some(move => move.row === pos.row && move.col === pos.col)) {
-                    return true;
+            // Prioritize captures
+            const capturingMoves = legalActions.filter((action): action is Move => {
+                if ('from' in action) { // It's a Move
+                    const toSquare = gameState.board[action.to.row][action.to.col];
+                    // A move is capturing if the destination square is occupied by an opponent's piece
+                    return toSquare !== null && toSquare.player !== gameState.currentPlayer;
                 }
+                return false; // Drops are not captures
+            });
+
+            if (capturingMoves.length > 0) {
+                const randomIndex = Math.floor(Math.random() * capturingMoves.length);
+                resolve(capturingMoves[randomIndex]);
+                return;
             }
-        }
-    }
-    return false;
-};
 
-const isKingInCheck = (board: Board, player: Player): boolean => {
-    const lionPos = findLion(board, player);
-    if (!lionPos) return true;
-    const opponent = player === Player.SENTE ? Player.GOTE : Player.SENTE;
-    return isSquareAttackedBy(board, lionPos, opponent);
-};
-
-// This is a simplified version for the AI. A full implementation would be needed for perfect rule adherence.
-const hasLegalMoves = (board: Board, player: Player): boolean => {
-     for (let r = 0; r < BOARD_ROWS; r++) {
-        for (let c = 0; c < BOARD_COLS; c++) {
-            const piece = board[r][c];
-            if (piece && piece.player === player) {
-                const moves = getValidMovesForPiece({ row: r, col: c }, board);
-                for (const move of moves) {
-                    const nextBoard = produce(board, draft => {
-                        draft[move.row][move.col] = piece;
-                        draft[r][c] = null;
-                    });
-                    if (!isKingInCheck(nextBoard, player)) {
-                        return true;
-                    }
-                }
-            }
-        }
-    }
-    return false; // Simplified: doesn't check drops for AI's hasLegalMoves check
-}
-
-
-/**
- * Calculates all possible legal moves for a given player.
- * @param gameState The current state of the game.
- * @returns An array of all legal actions.
- */
-const getAllLegalMoves = (gameState: GameState): Action[] => {
-    const legalMoves: Action[] = [];
-    const player = gameState.currentPlayer;
-    const board = gameState.board;
-
-    // 1. Get all moves from pieces on the board
-    for (let r = 0; r < BOARD_ROWS; r++) {
-        for (let c = 0; c < BOARD_COLS; c++) {
-            const piece = board[r][c];
-            if (piece && piece.player === player) {
-                const moves = getValidMovesForPiece({ row: r, col: c }, board);
-                for (const movePos of moves) {
-                    const action: Action = { from: { row: r, col: c }, to: movePos };
-                    legalMoves.push(action);
-                }
-            }
-        }
-    }
-
-    // 2. Get all drop moves
-    const capturedPieces = [...new Set(gameState.captured[player])]; // Unique piece types
-    if (capturedPieces.length > 0) {
-        const emptySquares: Position[] = [];
-        for (let r = 0; r < BOARD_ROWS; r++) {
-            for (let c = 0; c < BOARD_COLS; c++) {
-                if (!board[r][c]) {
-                    emptySquares.push({ row: r, col: c });
-                }
-            }
-        }
-
-        for (const pieceType of capturedPieces) {
-            for (const pos of emptySquares) {
-                 if (pieceType === PieceType.CHICK) {
-                    const nextBoard = produce(board, draft => {
-                        draft[pos.row][pos.col] = { type: PieceType.CHICK, player: player };
-                    });
-                    const opponent = player === Player.SENTE ? Player.GOTE : Player.SENTE;
-                    if (isKingInCheck(nextBoard, opponent) && !hasLegalMoves(nextBoard, opponent)) {
-                        continue; // Illegal move, so skip this square
-                    }
-                }
-                const action: Action = { pieceType, to: pos };
-                legalMoves.push(action);
-            }
-        }
-    }
-    
-    // 3. Filter out moves that leave the king in check
-    const filteredMoves = legalMoves.filter(action => {
-        const nextBoard = produce(board, draft => {
-             if ('from' in action) {
-                const piece = draft[action.from.row][action.from.col];
-                draft[action.to.row][action.to.col] = piece;
-                draft[action.from.row][action.from.col] = null;
-            } else {
-                draft[action.to.row][action.to.col] = { type: action.pieceType, player };
-            }
-        });
-        return !isKingInCheck(nextBoard, player);
+            // Otherwise, pick a random move from all legal actions
+            const randomIndex = Math.floor(Math.random() * legalActions.length);
+            resolve(legalActions[randomIndex]);
+        }, 500); // Simulate thinking time
     });
-
-    return filteredMoves;
 };
-
-/**
- * Gets a move for the AI by randomly selecting from all available legal moves.
- * @param gameState The current state of the game.
- * @returns A randomly selected legal action, or null if no moves are available.
- */
-export async function getSimpleAIMove(gameState: GameState): Promise<Action | null> {
-    return new Promise((resolve) => {
-        const legalMoves = getAllLegalMoves(gameState);
-        if (legalMoves.length === 0) {
-            resolve(null);
-            return;
-        }
-
-        const randomIndex = Math.floor(Math.random() * legalMoves.length);
-        resolve(legalMoves[randomIndex]);
-    });
-}
