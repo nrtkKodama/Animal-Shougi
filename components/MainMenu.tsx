@@ -30,7 +30,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ onSelectMode }) => {
                 </button>
             </div>
             <div className="mt-6 text-sm text-stone-600 p-3 bg-stone-100 rounded-lg">
-                <h3 className="font-semibold mb-1">How to Play Dobutsu Shogi</h3>
+                <h3 className="font-semibold mb-1">How to Play Animal Shougi</h3>
                 <p>Capture the opponent's Lion 🦁 or move your own Lion to the opposite side of the board to win!</p>
             </div>
         </div>

@@ -1,5 +1,5 @@
 {
-  "name": "Dobutsu Shogi AI",
-  "description": "A web-based Dobutsu Shogi (Animal Shogi) application where you can play against a rule-based AI or enjoy an online two-player game. Features a clean, responsive interface for both mobile and desktop play.",
+  "name": "Animal Shougi AI",
+  "description": "A web-based Animal Shogi (Animal Shogi) application where you can play against a rule-based AI or enjoy an online two-player game. Features a clean, responsive interface for both mobile and desktop play.",
   "requestFramePermissions": []
 }

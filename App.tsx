@@ -184,8 +184,8 @@ function App() {
     return (
         <div className="bg-yellow-50 min-h-screen flex flex-col items-center justify-center p-4 font-sans">
             <header className="text-center mb-4">
-                <h1 className="text-4xl md:text-5xl font-bold text-yellow-900">Dobutsu Shogi</h1>
-                <p className="text-stone-600">The Animal Shogi Game</p>
+                <h1 className="text-4xl md:text-5xl font-bold text-yellow-900">どうぶつ将棋</h1>
+                <p className="text-stone-600">The Animal Shougi Game</p>
             </header>
             <main className="w-full">
                 {renderContent()}
