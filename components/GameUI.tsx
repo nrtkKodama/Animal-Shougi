@@ -56,6 +56,7 @@ const GameUI: React.FC<GameUIProps> = ({
 
     const { board, captured, currentPlayer, winner, lastMove, isCheck } = gameState;
     const opponent = pov === Player.SENTE ? Player.GOTE : Player.SENTE;
+    const playerIsCurrent = currentPlayer === pov;
 
     const getPlayerName = (player: Player) => {
         if (isOnline) {
@@ -67,8 +68,22 @@ const GameUI: React.FC<GameUIProps> = ({
         // Single Player
         return player === pov ? 'You' : 'AI';
     };
+
+    const isPlayerInputEnabled = (() => {
+        if (gameOverMessage || winner !== undefined) return false;
+
+        switch (gameMode) {
+            case GameMode.ONLINE:
+                return playerIsCurrent;
+            case GameMode.SINGLE_PLAYER:
+                return playerIsCurrent && !isAITurn;
+            case GameMode.PLAYER_VS_PLAYER:
+                return true; // Local PvP allows any click, logic inside hook prevents illegal moves.
+            default:
+                return false;
+        }
+    })();
     
-    const playerIsCurrent = currentPlayer === pov;
     const isMyTurnForStatusText = (gameMode === GameMode.SINGLE_PLAYER && playerIsCurrent && !isAITurn) || (isOnline && playerIsCurrent);
 
     const shouldHighlight = !gameOverMessage && (
@@ -92,8 +107,6 @@ const GameUI: React.FC<GameUIProps> = ({
 
     const playerPieces = pov === Player.SENTE ? captured[Player.SENTE] : captured[Player.GOTE];
     const opponentPieces = pov === Player.SENTE ? captured[Player.GOTE] : captured[Player.SENTE];
-    
-    const isPlayerInputEnabled = (isOnline ? playerIsCurrent && !gameOverMessage : !isAITurn) || gameMode === GameMode.PLAYER_VS_PLAYER;
 
     return (
         <div className="flex flex-col items-center p-2 md:p-4 bg-stone-100 rounded-lg w-full max-w-lg mx-auto relative">
