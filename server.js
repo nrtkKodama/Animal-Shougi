@@ -1,4 +1,5 @@
 
+
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
@@ -21,53 +22,74 @@ io.on('connection', (socket) => {
     let currentRoomCode = null;
 
     socket.on('join_room', (roomCode) => {
-        currentRoomCode = roomCode;
         socket.join(roomCode);
-        console.log(`User ${socket.id} joined room ${roomCode}`);
+        currentRoomCode = roomCode;
+        console.log(`User ${socket.id} attempting to join room ${roomCode}`);
 
+        // Find or create room
         let room = rooms.get(roomCode);
-
         if (!room) {
-            room = {
-                players: { [socket.id]: 0 }, // Player 0 is Sente
-                gameState: null,
-            };
+            room = { players: [], gameState: null };
             rooms.set(roomCode, room);
-            socket.emit('waiting_for_opponent');
-        } else if (Object.keys(room.players).length === 1 && !room.players[socket.id]) {
-            room.players[socket.id] = 1; // Player 1 is Gote
-            room.gameState = createInitialState();
-            
-            // Iterate over players and send them their specific role to start the game
-            for (const [playerId, playerRole] of Object.entries(room.players)) {
-                io.to(playerId).emit('game_start', { gameState: room.gameState, player: playerRole });
-            }
-            
-            console.log(`Game started in room ${roomCode}`);
-        } else {
+        }
+
+        // Prevent user from joining if already in room or room is full
+        if (room.players.some(p => p.id === socket.id)) {
+            console.log(`User ${socket.id} is already in room ${roomCode}.`);
+            return;
+        }
+        if (room.players.length >= 2) {
             socket.emit('room_full');
             socket.leave(roomCode);
+            console.log(`Room ${roomCode} is full, rejected ${socket.id}.`);
+            return;
+        }
+
+        // Add player to room and assign role
+        const playerRole = room.players.length === 0 ? 0 : 1; // 0: Sente, 1: Gote
+        room.players.push({ id: socket.id, role: playerRole });
+        console.log(`User ${socket.id} joined room ${roomCode} as player role ${playerRole}`);
+
+        // If room has 1 player, wait for another
+        if (room.players.length < 2) {
+            socket.emit('waiting_for_opponent');
+        } 
+        // If room is now full, start the game
+        else {
+            room.gameState = createInitialState();
+            console.log(`Game starting in room ${roomCode}.`);
+            
+            // Send game start event to both players with their assigned roles
+            room.players.forEach(player => {
+                io.to(player.id).emit('game_start', {
+                    gameState: room.gameState,
+                    player: player.role
+                });
+            });
         }
     });
 
     socket.on('move', (action) => {
         const room = rooms.get(currentRoomCode);
-        if (!room || !room.gameState) return;
+        if (!room || !room.gameState || room.players.length < 2) return;
 
-        const { gameState, players } = room;
-        const playerRole = players[socket.id];
+        const player = room.players.find(p => p.id === socket.id);
+        if (!player) {
+            console.log(`Move from non-player ${socket.id} in room ${currentRoomCode}.`);
+            return;
+        }
         
-        if (playerRole !== gameState.currentPlayer) {
-            console.log(`Invalid turn attempt by ${socket.id} in room ${currentRoomCode}`);
+        if (player.role !== room.gameState.currentPlayer) {
+            console.log(`Invalid turn attempt by player ${player.role} (${socket.id}). Current turn is ${room.gameState.currentPlayer}.`);
             return;
         }
 
         try {
-            const nextState = applyAction(gameState, action);
+            const nextState = applyAction(room.gameState, action);
             room.gameState = nextState;
             io.in(currentRoomCode).emit('game_state_update', nextState);
         } catch (error) {
-            console.error(`Invalid move in room ${currentRoomCode}:`, error);
+            console.error(`Error applying move in room ${currentRoomCode}:`, error);
         }
     });
 
@@ -76,11 +98,12 @@ io.on('connection', (socket) => {
         if (currentRoomCode) {
             const room = rooms.get(currentRoomCode);
             if (room) {
-                delete room.players[socket.id];
-                if (Object.keys(room.players).length < 2) {
+                const playerIndex = room.players.findIndex(p => p.id === socket.id);
+                if (playerIndex !== -1) {
+                     // Notify the other player and close the room
                     socket.to(currentRoomCode).emit('opponent_disconnected');
                     rooms.delete(currentRoomCode);
-                    console.log(`Room ${currentRoomCode} closed.`);
+                    console.log(`Room ${currentRoomCode} closed due to disconnect by ${socket.id}.`);
                 }
             }
         }
@@ -88,11 +111,9 @@ io.on('connection', (socket) => {
 });
 
 // Serve static files from the project root.
-// This will serve index.html and the /dist directory.
 app.use(express.static(projectRoot));
 
-// Serve index.html for any GET request that doesn't match a static file
-// This acts as a fallback for Single Page Applications.
+// Fallback for Single Page Applications.
 app.get('*', (req, res) => {
     res.sendFile(path.join(projectRoot, 'index.html'));
 });
