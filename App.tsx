@@ -38,7 +38,7 @@ function App() {
             setView('game');
         } else if (mode === GameMode.PLAYER_VS_PLAYER) {
             resetGame(Player.SENTE); // Start with Player 1 (Sente)
-            setPlayer(Player.SENTE); // Default POV, will be overridden by currentPlayer
+            setPlayer(Player.SENTE); // Default POV for PvP is always Sente
             setView('game');
         } else if (mode === GameMode.ONLINE) {
             setView('online-lobby');
@@ -139,7 +139,7 @@ function App() {
                 return (
                     <GameUI
                         gameState={gameState}
-                        pov={gameMode === GameMode.PLAYER_VS_PLAYER ? gameState.currentPlayer : player}
+                        pov={gameMode === GameMode.PLAYER_VS_PLAYER ? Player.SENTE : player}
                         isAITurn={isAITurn && gameMode === GameMode.SINGLE_PLAYER}
                         selectedPosition={selectedPosition}
                         selectedCapturedPiece={selectedCapturedPiece}

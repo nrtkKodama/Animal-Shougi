@@ -38,10 +38,10 @@ io.on('connection', (socket) => {
             room.players[socket.id] = 1; // Player 1 is Gote
             room.gameState = createInitialState();
             
-            const [player1Id, player2Id] = Object.keys(room.players);
-            
-            io.to(player1Id).emit('game_start', { gameState: room.gameState, player: room.players[player1Id] });
-            io.to(player2Id).emit('game_start', { gameState: room.gameState, player: room.players[player2Id] });
+            // Iterate over players and send them their specific role to start the game
+            for (const [playerId, playerRole] of Object.entries(room.players)) {
+                io.to(playerId).emit('game_start', { gameState: room.gameState, player: playerRole });
+            }
             
             console.log(`Game started in room ${roomCode}`);
         } else {

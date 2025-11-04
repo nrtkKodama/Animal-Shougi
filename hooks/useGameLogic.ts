@@ -180,7 +180,7 @@ export const useGameLogic = () => {
 
         const nextPlayer = currentActionPlayer === Player.SENTE ? Player.GOTE : Player.SENTE;
         newGameState.currentPlayer = nextPlayer;
-        if (currentActionPlayer === Player.GOTE || newGameState.turn === 0) {
+        if (currentActionPlayer === Player.GOTE) {
              newGameState.turn++;
         }
         
