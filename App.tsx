@@ -113,11 +113,11 @@ function App() {
     useEffect(() => {
         if (socket) {
             const opponentDisconnectedHandler = () => {
-                setGameOverMessage('Opponent disconnected. Room closed.');
+                setGameOverMessage('Opponent disconnected. Room will close in 3 seconds.');
                 setTimeout(() => {
                     // handleBackToMenu also disconnects the socket
                     handleBackToMenu();
-                }, 4000);
+                }, 3000);
             };
             socket.on('opponent_disconnected', opponentDisconnectedHandler);
 

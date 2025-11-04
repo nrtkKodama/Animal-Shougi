@@ -74,11 +74,10 @@ const GameUI: React.FC<GameUIProps> = ({
 
         switch (gameMode) {
             case GameMode.ONLINE:
-                return playerIsCurrent;
+            case GameMode.PLAYER_VS_PLAYER:
+                return true; // Local/Online PvP allows any click, logic inside hook prevents illegal moves.
             case GameMode.SINGLE_PLAYER:
                 return playerIsCurrent && !isAITurn;
-            case GameMode.PLAYER_VS_PLAYER:
-                return true; // Local PvP allows any click, logic inside hook prevents illegal moves.
             default:
                 return false;
         }
