@@ -72,12 +72,7 @@ const getLegalActions = (player: Player, currentBoard: Board, currentCaptured: G
             if (piece && piece.player === player) {
                 const moves = getPieceMoves(piece, { row: r, col: c }, currentBoard);
                 for (const move of moves) {
-                    const tempBoard = cloneDeep(currentBoard);
-                    tempBoard[move.row][move.col] = tempBoard[r][c];
-                    tempBoard[r][c] = null;
-                    if (!isKingInCheck(player, tempBoard)) {
-                        actions.push({ from: { row: r, col: c }, to: move });
-                    }
+                    actions.push({ from: { row: r, col: c }, to: move });
                 }
             }
         }
@@ -91,11 +86,7 @@ const getLegalActions = (player: Player, currentBoard: Board, currentCaptured: G
                         const promotionRow = player === Player.SENTE ? 0 : BOARD_ROWS - 1;
                         if (r === promotionRow) continue;
                     }
-                    const tempBoard = cloneDeep(currentBoard);
-                    tempBoard[r][c] = { type: pieceType, player };
-                    if (!isKingInCheck(player, tempBoard)) {
-                        actions.push({ pieceType, to: { row: r, col: c }});
-                    }
+                    actions.push({ pieceType, to: { row: r, col: c }});
                  }
             }
         }

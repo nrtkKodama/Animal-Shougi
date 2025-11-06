@@ -107,12 +107,7 @@ const getLegalActions_local = (gameState: GameState): Action[] => {
             if (piece && piece.player === currentPlayer) {
                 const moves = getPieceMoves(piece, { row: r, col: c }, board);
                 for (const move of moves) {
-                    const tempBoard = cloneDeep(board);
-                    tempBoard[move.row][move.col] = tempBoard[r][c];
-                    tempBoard[r][c] = null;
-                    if (!isKingInCheck(currentPlayer, tempBoard)) {
-                        actions.push({ from: { row: r, col: c }, to: move });
-                    }
+                    actions.push({ from: { row: r, col: c }, to: move });
                 }
             }
         }
@@ -127,11 +122,7 @@ const getLegalActions_local = (gameState: GameState): Action[] => {
                     const promotionRow = currentPlayer === Player.SENTE ? 0 : BOARD_ROWS - 1;
                     if (pieceType === PieceType.CHICK && r === promotionRow) continue;
 
-                    const tempBoard = cloneDeep(board);
-                    tempBoard[r][c] = { type: pieceType, player: currentPlayer };
-                    if (!isKingInCheck(currentPlayer, tempBoard)) {
-                        actions.push({ pieceType, to: { row: r, col: c }});
-                    }
+                    actions.push({ pieceType, to: { row: r, col: c }});
                  }
             }
         }

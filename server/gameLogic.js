@@ -155,13 +155,7 @@ function getLegalActions(player, board, captured) {
                 const moves = getPieceMoves(piece, { row: r, col: c }, board);
 
                 for (const move of moves) {
-                    const temp = cloneDeep(board);
-                    temp[move.row][move.col] = temp[r][c];
-                    temp[r][c] = null;
-
-                    if (!isKingInCheck(player, temp)) {
-                        actions.push({ from: { row: r, col: c }, to: move });
-                    }
+                   actions.push({ from: { row: r, col: c }, to: move });
                 }
             }
         }
@@ -183,12 +177,7 @@ function getLegalActions(player, board, captured) {
                     continue;
                 }
                 
-                const temp = cloneDeep(board);
-                temp[r][c] = { type: pieceType, player };
-
-                if (!isKingInCheck(player, temp)) {
-                    actions.push({ pieceType, to: { row: r, col: c } });
-                }
+                actions.push({ pieceType, to: { row: r, col: c } });
             }
         }
     }
