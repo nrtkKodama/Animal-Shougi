@@ -148,7 +148,8 @@ const applyAction_local = (gameState: GameState, action: Action): GameState => {
         }
         newGameState.board[action.to.row][action.to.col] = piece;
         newGameState.board[action.from.row][action.from.col] = null;
-        if (piece.type === PieceType.CHICK && action.to.row === (player === Player.SENTE ? 0 : 3)) {
+        const promotionRow = player === Player.SENTE ? 0 : BOARD_ROWS - 1;
+        if (piece.type === PieceType.CHICK && action.to.row === promotionRow) {
             piece.type = PieceType.HEN;
         }
     } else {
@@ -195,28 +196,35 @@ const getLegalActions_local = (gameState: GameState): Action[] => {
 };
 
 const getWinner_local = (gameState: GameState): Player | undefined => {
-    const { board, currentPlayer } = gameState;
-    const opponent = currentPlayer === Player.SENTE ? Player.GOTE : Player.SENTE;
+    const { board, currentPlayer } = gameState; // currentPlayer is the player whose turn it is NOW.
+    const playerWhoJustMoved = currentPlayer === Player.SENTE ? Player.GOTE : Player.SENTE;
 
-    const myLionPos = findLionPosition(currentPlayer, board);
-    const opLionPos = findLionPosition(opponent, board);
-
-    if (!opLionPos) return currentPlayer;
-    if (!myLionPos) return opponent;
-
-    const myGoalRow = currentPlayer === Player.SENTE ? 0 : 3;
-    if (myLionPos.row === myGoalRow && !isPositionUnderAttack(myLionPos, opponent, board)) {
-        return currentPlayer;
+    // Win by Capture: Check if the current player's lion is on the board.
+    // If not, the player who just moved must have captured it.
+    const currentPlayerLionPos = findLionPosition(currentPlayer, board);
+    if (!currentPlayerLionPos) {
+        return playerWhoJustMoved;
     }
-    
-    // Check for checkmate (opponent has no legal moves)
-    const opponentActions = getLegalActions_local({ ...gameState, currentPlayer: opponent });
-    if (opponentActions.length === 0) {
-        return currentPlayer;
+
+    // Win by "Try": Check if the player who just moved got their lion to the end row safely.
+    const movedPlayerLionPos = findLionPosition(playerWhoJustMoved, board);
+    if (movedPlayerLionPos) { // Lion should exist
+        const goalRow = playerWhoJustMoved === Player.SENTE ? 0 : BOARD_ROWS - 1;
+        if (movedPlayerLionPos.row === goalRow && !isPositionUnderAttack(movedPlayerLionPos, currentPlayer, board)) {
+            return playerWhoJustMoved;
+        }
+    }
+
+    // Win by Stalemate/Checkmate: Check if the current player has any legal moves.
+    // If not, they lose, and the player who just moved wins.
+    const legalActions = getLegalActions_local(gameState);
+    if (legalActions.length === 0) {
+        return playerWhoJustMoved;
     }
 
     return undefined;
 };
+
 
 // =================================================================
 // AI Evaluation Function
@@ -334,6 +342,17 @@ const getSearchDepth = (difficulty: Difficulty, gameState: GameState): number =>
 
 const findBestMove = (legalActions: Action[], gameState: GameState, difficulty: Difficulty): Action => {
     const aiPlayer = gameState.currentPlayer;
+
+    // First, check for any move that results in an immediate win.
+    for (const action of legalActions) {
+        const nextState = applyAction_local(gameState, action);
+        const winner = getWinner_local(nextState);
+        if (winner === aiPlayer) {
+            // This is a winning move, take it immediately.
+            return action;
+        }
+    }
+
     let bestScore = -Infinity;
     let bestMoves: Action[] = [];
     const searchDepth = getSearchDepth(difficulty, gameState);
