@@ -6,15 +6,56 @@ import { PIECE_MOVES, BOARD_ROWS, BOARD_COLS } from '../constants';
 // =================================================================
 
 const PIECE_VALUES: Record<PieceType, number> = {
-    [PieceType.LION]: 10000,
-    [PieceType.HEN]: 9,
-    [PieceType.GIRAFFE]: 5,
-    [PieceType.ELEPHANT]: 5,
-    [PieceType.CHICK]: 1,
+    [PieceType.LION]: 20000,
+    [PieceType.HEN]: 1200,
+    [PieceType.GIRAFFE]: 500,
+    [PieceType.ELEPHANT]: 500,
+    [PieceType.CHICK]: 100,
 };
 
 // Weighting for different evaluation components
-const MOBILITY_WEIGHT = 0.1;
+const MOBILITY_WEIGHT = 10;
+
+// Piece-Square Tables (from Sente's perspective)
+// These tables give bonuses or penalties to pieces based on their position.
+const PST_LION: number[][] = [
+  [30, 40, 30], // Close to try
+  [10, 20, 10], // Center control
+  [ 0,  5,  0],
+  [ 0,  0,  0]
+];
+const PST_GIRAFFE: number[][] = [
+  [ 0,  5,  0],
+  [ 5, 10,  5],
+  [ 5, 10,  5],
+  [ 0,  5,  0]
+];
+const PST_ELEPHANT: number[][] = [
+  [ 0,  5,  0],
+  [ 5, 10,  5],
+  [ 5, 10,  5],
+  [ 0,  5,  0]
+];
+const PST_CHICK: number[][] = [
+  [0, 0, 0],    // Promotion is handled by HEN value
+  [100, 100, 100], // Getting very close
+  [20, 20, 20],
+  [0, 0, 0]
+];
+const PST_HEN: number[][] = [
+  [100, 120, 100],
+  [ 80, 100,  80],
+  [ 60,  80,  60],
+  [ 40,  60,  40]
+];
+
+const PIECE_SQUARE_TABLES: Record<PieceType, number[][]> = {
+    [PieceType.LION]: PST_LION,
+    [PieceType.GIRAFFE]: PST_GIRAFFE,
+    [PieceType.ELEPHANT]: PST_ELEPHANT,
+    [PieceType.CHICK]: PST_CHICK,
+    [PieceType.HEN]: PST_HEN,
+};
 
 // =================================================================
 // Self-Contained Game Logic Helpers
@@ -166,17 +207,30 @@ const evaluateBoard = (gameState: GameState, aiPlayer: Player, difficulty: Diffi
     const opponent = aiPlayer === Player.SENTE ? Player.GOTE : Player.SENTE;
     let score = 0;
 
-    // 1. Material score (pieces on board + captured pieces)
+    // 1. Material and Positional Score (Piece-Square Tables)
     for (let r = 0; r < BOARD_ROWS; r++) {
         for (let c = 0; c < BOARD_COLS; c++) {
             const piece = gameState.board[r][c];
             if (piece) {
-                score += PIECE_VALUES[piece.type] * (piece.player === aiPlayer ? 1 : -1);
+                const pieceValue = PIECE_VALUES[piece.type];
+                const table = PIECE_SQUARE_TABLES[piece.type];
+                // PST is from Sente's perspective, so we flip the row for Gote.
+                const pstValue = piece.player === Player.SENTE 
+                    ? table[r][c] 
+                    : table[BOARD_ROWS - 1 - r][c];
+                
+                const totalValue = pieceValue + pstValue;
+                score += totalValue * (piece.player === aiPlayer ? 1 : -1);
             }
         }
     }
-    for (const pieceType of gameState.captured[aiPlayer]) score += PIECE_VALUES[pieceType];
-    for (const pieceType of gameState.captured[opponent]) score -= PIECE_VALUES[pieceType];
+    for (const pieceType of gameState.captured[aiPlayer]) {
+        score += PIECE_VALUES[pieceType];
+    }
+    for (const pieceType of gameState.captured[opponent]) {
+        score -= PIECE_VALUES[pieceType];
+    }
+
 
     // 2. Mobility score (number of legal moves) - not used on Easy
     if (difficulty !== Difficulty.EASY) {
@@ -185,23 +239,25 @@ const evaluateBoard = (gameState: GameState, aiPlayer: Player, difficulty: Diffi
         score += (aiMoves.length - opponentMoves.length) * MOBILITY_WEIGHT;
     }
 
-    // 3. Positional Score (e.g., chick promotion) and Check bonus
-    for (let r = 0; r < BOARD_ROWS; r++) {
-        for (let c = 0; c < BOARD_COLS; c++) {
-            const piece = gameState.board[r][c];
-            if (piece && piece.type === PieceType.CHICK) {
-                if (piece.player === aiPlayer) {
-                    const promotionBonus = piece.player === Player.SENTE ? (3 - r) : r;
-                    score += promotionBonus * 0.5;
-                }
+    // 3. "Try" Threat Bonus (Hard only)
+    if (difficulty === Difficulty.HARD) {
+        const aiLionPos = findLionPosition(aiPlayer, gameState.board);
+        if (aiLionPos) {
+            const tryThreatRow = aiPlayer === Player.SENTE ? 1 : 2;
+            if (aiLionPos.row === tryThreatRow) {
+                score += 300; // Significant bonus for being one step away from a Try.
             }
         }
     }
-    if (isKingInCheck(opponent, gameState.board)) score += 5;
-    if (isKingInCheck(aiPlayer, gameState.board)) score -= 5;
+    
+    // 4. Check bonus
+    const checkBonus = difficulty === Difficulty.HARD ? 50 : 25;
+    if (isKingInCheck(opponent, gameState.board)) score += checkBonus;
+    if (isKingInCheck(aiPlayer, gameState.board)) score -= checkBonus;
     
     return score;
 };
+
 
 // =================================================================
 // Minimax Algorithm with Alpha-Beta Pruning
@@ -241,7 +297,7 @@ const getSearchDepth = (difficulty: Difficulty): number => {
     switch (difficulty) {
         case Difficulty.EASY: return 2;
         case Difficulty.MEDIUM: return 3;
-        case Difficulty.HARD: return 4;
+        case Difficulty.HARD: return 5; // Increased depth for stronger play
         default: return 3;
     }
 };
