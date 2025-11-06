@@ -223,7 +223,7 @@ export const useGameLogic = () => {
     };
 
     const handleSquareClick = useCallback((row: number, col: number, onMove?: (action: Action) => void) => {
-        if (winner || gameState.isDraw) return;
+        if (winner !== undefined || gameState.isDraw) return;
         if (selectedPosition) {
             if (validMoves.some(m => m.row === row && m.col === col)) {
                 handleAction({ from: selectedPosition, to: { row, col } }, onMove);
@@ -250,7 +250,7 @@ export const useGameLogic = () => {
     }, [winner, gameState.isDraw, board, currentPlayer, selectedPosition, selectedCapturedPiece, validMoves, applyAction, getValidMovesForPiece]);
 
     const handleCapturedPieceClick = useCallback((pieceType: PieceType, onMove?: (action: Action) => void) => {
-        if (winner || gameState.isDraw) return;
+        if (winner !== undefined || gameState.isDraw) return;
         if (selectedCapturedPiece === pieceType) {
             setSelectedCapturedPiece(null);
             setValidMoves([]);

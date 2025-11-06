@@ -58,6 +58,29 @@ const PIECE_SQUARE_TABLES: Record<PieceType, number[][]> = {
 };
 
 // =================================================================
+// LATE GAME DETECTION
+// =================================================================
+
+const countPiecesOnBoard = (board: Board): number => {
+    let count = 0;
+    for (let r = 0; r < BOARD_ROWS; r++) {
+        for (let c = 0; c < BOARD_COLS; c++) {
+            if (board[r][c]) {
+                count++;
+            }
+        }
+    }
+    return count;
+};
+
+const isLateGame = (gameState: GameState): boolean => {
+    const pieceCount = countPiecesOnBoard(gameState.board);
+    // 終盤と見なす条件: ターン数が15を超えるか、盤上の駒が6個以下
+    return gameState.turn > 15 || pieceCount <= 6;
+};
+
+
+// =================================================================
 // Self-Contained Game Logic Helpers
 // =================================================================
 
@@ -200,10 +223,6 @@ const getWinner_local = (gameState: GameState): Player | undefined => {
 // =================================================================
 
 const evaluateBoard = (gameState: GameState, aiPlayer: Player, difficulty: Difficulty): number => {
-    const winner = getWinner_local(gameState);
-    if (winner === aiPlayer) return Infinity;
-    if (winner !== undefined) return -Infinity;
-
     const opponent = aiPlayer === Player.SENTE ? Player.GOTE : Player.SENTE;
     let score = 0;
 
@@ -264,7 +283,14 @@ const evaluateBoard = (gameState: GameState, aiPlayer: Player, difficulty: Diffi
 // =================================================================
 
 const minimax = (gameState: GameState, depth: number, alpha: number, beta: number, maximizingPlayer: boolean, aiPlayer: Player, difficulty: Difficulty): number => {
-    if (depth === 0 || getWinner_local(gameState) !== undefined) {
+    const winner = getWinner_local(gameState);
+    if (winner !== undefined) {
+        // 早く詰ませる/遅く詰まされる手を評価するため、深さをスコアに加味する
+        if (winner === aiPlayer) return Infinity + depth; // 味方が勝つ -> 深さが大きいほど良い（早く勝つ）
+        return -Infinity - depth; // 敵が勝つ -> 深さが小さいほど良い（遅く負ける）
+    }
+
+    if (depth === 0) {
         return evaluateBoard(gameState, aiPlayer, difficulty);
     }
 
@@ -293,11 +319,15 @@ const minimax = (gameState: GameState, depth: number, alpha: number, beta: numbe
     }
 };
 
-const getSearchDepth = (difficulty: Difficulty): number => {
+const getSearchDepth = (difficulty: Difficulty, gameState: GameState): number => {
     switch (difficulty) {
         case Difficulty.EASY: return 2;
         case Difficulty.MEDIUM: return 3;
-        case Difficulty.HARD: return 5; // Increased depth for stronger play
+        case Difficulty.HARD:
+            if (isLateGame(gameState)) {
+                return 7; // 終盤は読みを深くする
+            }
+            return 5; // 通常の探索深度
         default: return 3;
     }
 };
@@ -306,7 +336,7 @@ const findBestMove = (legalActions: Action[], gameState: GameState, difficulty: 
     const aiPlayer = gameState.currentPlayer;
     let bestScore = -Infinity;
     let bestMoves: Action[] = [];
-    const searchDepth = getSearchDepth(difficulty);
+    const searchDepth = getSearchDepth(difficulty, gameState);
 
     for (const action of legalActions) {
         const nextState = applyAction_local(gameState, action);

@@ -123,7 +123,7 @@ function App() {
         const isSinglePlayer = gameMode === GameMode.SINGLE_PLAYER;
         const aiPlayer = player === Player.SENTE ? Player.GOTE : Player.SENTE;
         
-        if (isSinglePlayer && gameState.currentPlayer === aiPlayer && !gameState.winner && !gameState.isDraw && !isAITurn) {
+        if (isSinglePlayer && gameState.currentPlayer === aiPlayer && gameState.winner === undefined && !gameState.isDraw && !isAITurn) {
             const timer = setTimeout(() => runAiMove(), 500);
             return () => clearTimeout(timer);
         }
